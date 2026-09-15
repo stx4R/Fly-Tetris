@@ -1,28 +1,37 @@
 // 캘리브레이션 지표. 순수 함수.
 
 // 창 발화 수 배열들(뉴런 N 개 × 창 B 개) → 발화 통계
-//   meanRateHz     전 뉴런·전 창 평균 발화율
+//   meanRateHz     전 뉴런·전 창 평균 발화율 (허브에 끌려간다)
+//   medianRateHz   뉴런별 평균 발화율의 중앙값
 //   activeFrac     창당 최소 1회 발화한 뉴런 비율 (창 평균)
-//   saturatedFrac  창당 saturatedAt 회 이상 발화한 뉴런 비율 (창 평균)
-//   ceilingFrac    창당 ceilingAt 회 이상 발화 = 불응기 한계 근처(≥ 300 Hz) 비율. 스펙의 20회 기준은
-//                  2ms 불응기에서 물리적으로 도달 불가(최대 17회)라 참고용으로 같이 낸다
-export function spikeStats(countsList, N, T, { saturatedAt = 20, ceilingAt = 15 } = {}) {
-  let total = 0, active = 0, saturated = 0, ceiling = 0;
+//   ceilingFrac    창당 ceilingAt 회 이상 발화 = 불응기 한계 근처(≥ 300 Hz) 비율. 폭주 하드 제약.
+//                  (2단계의 "20회 이상 포화" 는 2ms 불응기·50스텝 창에서 도달 불가(최대 17회)라 삭제)
+//   topSpikeShare  총 발화 수 기준 상위 topFrac(1%) 뉴런이 차지하는 전체 발화 비율. 승자독식의 직접 측정치.
+export function spikeStats(countsList, N, T, { ceilingAt = 15, topFrac = 0.01 } = {}) {
+  const B = countsList.length;
+  const perNeuron = new Float64Array(N);
+  let total = 0, active = 0, ceiling = 0;
   for (const counts of countsList) {
     for (let i = 0; i < N; i++) {
       const c = counts[i];
+      perNeuron[i] += c;
       total += c;
       if (c > 0) active++;
-      if (c >= saturatedAt) saturated++;
       if (c >= ceilingAt) ceiling++;
     }
   }
-  const B = countsList.length;
+  const secPerWindow = T / 1000;
+  const sorted = Float64Array.from(perNeuron).sort();
+  const median = N % 2 ? sorted[(N - 1) / 2] : (sorted[N / 2 - 1] + sorted[N / 2]) / 2;
+  const nTop = Math.max(1, Math.round(N * topFrac));
+  let top = 0;
+  for (let i = N - nTop; i < N; i++) top += sorted[i];
   return {
-    meanRateHz: total / (B * N) / (T / 1000),
+    meanRateHz: total / (B * N) / secPerWindow,
+    medianRateHz: median / B / secPerWindow,
     activeFrac: active / (B * N),
-    saturatedFrac: saturated / (B * N),
     ceilingFrac: ceiling / (B * N),
+    topSpikeShare: total > 0 ? top / total : 0,
   };
 }
 
@@ -81,7 +90,7 @@ export function symmetricEigenvalues(A, n, { maxSweeps = 100, tol = 1e-14 } = {}
   return ev.sort((x, y) => y - x);
 }
 
-// 행렬 X (rows: 벡터 배열, 각 길이 d) 의 유효 랭크 = 특이값 σ > relTol · σ_max 인 개수.
+// 행렬 X (rows: 벡터 배열, 각 길이 d) 의 유효 랭크 = 특이값 σ > relTol · σ_max 인 개수. 보조 지표.
 // Gram 행렬 XᵀX (d×d) 의 고유값 λ = σ² 로 계산하므로 σ 기준 relTol 은 λ 기준 relTol² 이다.
 export function effectiveRank(rows, relTol = 1e-6) {
   if (rows.length === 0) return 0;

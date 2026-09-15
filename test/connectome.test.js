@@ -8,13 +8,14 @@ import {
   filterEdgesByWeight,
   hiddenCandidates,
   parseConnectome,
+  primaryRoi,
   truncateHidden,
 } from '../src/connectome.js';
 
 // ---------- 픽스처 ----------
 
 const neuron = (id, type, layer, extra = {}) => ({
-  id, type, layer, instance: `${type}_R`, soma: [1, 2, 3], isKC: false, isAllowlisted: false, ...extra,
+  id, type, layer, instance: `${type}_R`, soma: [1, 2, 3], isKC: false, isAllowlisted: false, roi: 'PVLP(R)', ...extra,
 });
 
 // 3-노드 최소 커넥톰: input(0) → hidden(1) → output(2)
@@ -29,11 +30,12 @@ function smallConnectome() {
       weightThreshold: 3,
       outputAllowlisted: [],
       kcCount: 0,
+      roiCounts: { 'PVLP(R)': 2, null: 1 },
     },
     neurons: [
       neuron(100, 'LC4', 'input'),
       neuron(200, 'PVLP001', 'hidden', { soma: null }),
-      neuron(300, 'DNp04', 'output'),
+      neuron(300, 'DNp04', 'output', { roi: null }),
     ],
     edges: [[0, 1, 5], [1, 2, 7]],
   };
@@ -94,6 +96,8 @@ test('parseConnectome: rejects malformed documents', () => {
     ['edges', (c) => { c.edges[0] = [0, 1, 2.5]; }],
     ['isKC', (c) => { delete c.neurons[0].isKC; }],
     ['kcCount', (c) => { c.neurons[1].isKC = true; }],
+    ['roi', (c) => { c.neurons[0].roi = ''; }],
+    ['roiCounts', (c) => { c.neurons[2].roi = 'LO(R)'; }],
     ['isAllowlisted but layer', (c) => { c.neurons[1].isAllowlisted = true; }],
     ['outputAllowlisted', (c) => { c.meta.outputAllowlisted = 'MDN'; }],
   ];
@@ -185,9 +189,31 @@ test('truncateHidden: throws when input+output alone exceed the cap', () => {
 
 // ---------- 종단 ----------
 
+// roiInfo 픽스처: super-ROI(VLNP(R)) 가 하위 PVLP(R) 를 포함해 항상 크다 → primary 목록으로 걸러야 한다
+const PRIMARY = ['PVLP(R)', 'LO(R)', 'AVLP(R)'];
+const roiInfoById = new Map([
+  [1, JSON.stringify({ 'VLNP(R)': { pre: 900, post: 900 }, 'LO(R)': { pre: 500, post: 100 }, 'PVLP(R)': { pre: 300, post: 200 } })],
+  [2, JSON.stringify({ 'LO(R)': { pre: 10, post: 10 }, 'AVLP(R)': { pre: 10, post: 10 } })], // 동점 → 이름순 AVLP(R)
+  [3, JSON.stringify({ 'PVLP(R)': { post: 40 } })],
+  [4, JSON.stringify({ 'XYZ(R)': { pre: 40 } })],   // primary 아님 → null
+  [9, '{bad json'],
+]);
+
+test('primaryRoi: picks the primary ROI with the most pre+post, ignores super-ROIs, ties by name, null when absent', () => {
+  assert.equal(primaryRoi(roiInfoById.get(1), PRIMARY), 'LO(R)');
+  assert.equal(primaryRoi(roiInfoById.get(2), PRIMARY), 'AVLP(R)');
+  assert.equal(primaryRoi(roiInfoById.get(3), PRIMARY), 'PVLP(R)');
+  assert.equal(primaryRoi(roiInfoById.get(4), PRIMARY), null);
+  assert.equal(primaryRoi(roiInfoById.get(9), PRIMARY), null);
+  assert.equal(primaryRoi(undefined, PRIMARY), null);
+});
+
 test('buildConnectome: end-to-end on the fixture, output passes parser and graph checks', () => {
-  const c = buildConnectome(rawNeurons, rawEdges, { weightThreshold: 3, maxNodes: 100, extractedAt: '2026-09-15T00:00:00.000Z' });
+  const c = buildConnectome(rawNeurons, rawEdges, { weightThreshold: 3, maxNodes: 100, extractedAt: '2026-09-15T00:00:00.000Z', roiInfoById, primaryRois: PRIMARY });
   parseConnectome(c);
+  // roi: 1→LO(R), 2→AVLP(R), 3→PVLP(R), 4→null(primary 아님), 나머지 roiInfo 없음 → null
+  assert.deepEqual(c.neurons.map((n) => n.roi), ['LO(R)', 'AVLP(R)', 'PVLP(R)', null, null, null, null, null, null]);
+  assert.deepEqual(c.meta.roiCounts, { null: 6, 'AVLP(R)': 1, 'LO(R)': 1, 'PVLP(R)': 1 });
   assert.deepEqual(c.meta.layerSizes, { input: 2, hidden: 5, output: 2 });
   assert.equal(c.meta.truncated, false);
   assert.equal(c.meta.hiddenCandidateCount, 5);
@@ -200,7 +226,18 @@ test('buildConnectome: end-to-end on the fixture, output passes parser and graph
   // 인덱스 간선: 1→3=[0,2], 2→4=[1,3], 3→7=[2,5], 3→13=[2,6], 3→9=[2,7], 4→5=[3,4], 5→9=[4,7], 13→14=[6,8]
   assert.deepEqual(c.edges, [[0, 2, 10], [1, 3, 20], [2, 5, 4], [2, 6, 6], [2, 7, 10], [3, 4, 20], [4, 7, 20], [6, 8, 6]]);
   assert.equal(c.meta.edgeCount, 8);
-  assert.ok(checkGraph(c).every((r) => r.ok), JSON.stringify(checkGraph(c).filter((r) => !r.ok)));
+  const results = checkGraph(c);
+  const roiCheck = results.find((r) => r.name.startsWith('roi null ratio'));
+  assert.equal(roiCheck.ok, false); // 6/9 null → 10% 초과
+  assert.ok(results.filter((r) => r !== roiCheck).every((r) => r.ok), JSON.stringify(results.filter((r) => !r.ok)));
+  assert.ok(checkGraph(c, { maxRoiNullRatio: 0.7 }).every((r) => r.ok));
+});
+
+test('buildConnectome without roiInfo: every roi is null and roiCounts says so', () => {
+  const c = buildConnectome(rawNeurons, rawEdges, { weightThreshold: 3, maxNodes: 100 });
+  assert.ok(c.neurons.every((n) => n.roi === null));
+  assert.deepEqual(c.meta.roiCounts, { null: 9 });
+  parseConnectome(c);
 });
 
 test('buildConnectome: cap forces hidden truncation', () => {

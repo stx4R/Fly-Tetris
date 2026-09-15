@@ -3,6 +3,7 @@
 // 용어
 //   rawNeuron : { id: bodyId, type, instance, soma: [x,y,z] | null }
 //   rawEdge   : [preBodyId, postBodyId, weight]
+//   roiInfo   : neuPrint n.roiInfo JSON 문자열 { "<ROI>": { pre, post, ... }, ... } (super-ROI 가 하위 ROI 를 포함해 중첩)
 //   connectome: data/connectome.json 스키마 (edges 는 neurons 배열 인덱스 기준)
 
 export const DATASET = 'hemibrain:v1.2.1';
@@ -28,6 +29,25 @@ export function classifyLayer(type) {
 
 export const isKC = (type) => typeof type === 'string' && type.startsWith('KC');
 export const isAllowlisted = (type) => OUTPUT_ALLOWLIST.includes(type);
+
+// 뉴런의 주 뉴로필: roiInfo 에서 primaryRois (neuPrint :Meta.primaryRois, 최하위 ROI 집합) 에 속하는 ROI 중
+// pre+post 시냅스 수 최대인 것. super-ROI(VLNP(R) 등) 는 하위 ROI 를 포함해 항상 이기므로 후보에서 뺀다.
+// 동점은 이름 오름차순. roiInfo 가 없거나 primary ROI 가 하나도 없으면 null.
+export function primaryRoi(roiInfo, primaryRois) {
+  if (typeof roiInfo !== 'string' || !roiInfo) return null;
+  let info;
+  try { info = JSON.parse(roiInfo); } catch { return null; }
+  if (!info || typeof info !== 'object') return null;
+  let best = null;
+  let bestCount = -1;
+  for (const roi of primaryRois) {
+    const e = info[roi];
+    if (!e) continue;
+    const count = (e.pre ?? 0) + (e.post ?? 0);
+    if (count > bestCount || (count === bestCount && roi < best)) { best = roi; bestCount = count; }
+  }
+  return best;
+}
 
 export function filterEdgesByWeight(edges, threshold) {
   return edges.filter((e) => e[2] >= threshold);
@@ -113,11 +133,14 @@ export function truncateHidden({ input, hidden, output }, edges, maxNodes) {
 const byTypeThenId = (a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : a.id - b.id);
 
 // rawNeuron[] + rawEdge[] → connectome.json 객체.
+// roiInfoById (Map bodyId → roiInfo 문자열) 와 primaryRois 를 주면 뉴런별 roi 를 채운다. 없으면 전부 null.
 export function buildConnectome(rawNeurons, rawEdges, {
   weightThreshold = WEIGHT_THRESHOLD,
   maxNodes = MAX_NODES,
   extractedAt = new Date().toISOString(),
   dataset = DATASET,
+  roiInfoById = null,
+  primaryRois = [],
 } = {}) {
   const { edges, selfLoops, duplicates } = dedupeEdges(filterEdgesByWeight(rawEdges, weightThreshold));
 
@@ -148,7 +171,10 @@ export function buildConnectome(rawNeurons, rawEdges, {
   const neuronsOut = ordered.map((n) => ({
     id: n.id, type: n.type, layer: n.layer, instance: n.instance, soma: n.soma,
     isKC: isKC(n.type), isAllowlisted: isAllowlisted(n.type),
+    roi: roiInfoById ? primaryRoi(roiInfoById.get(n.id), primaryRois) : null,
   }));
+  const roiCounts = {};
+  for (const n of neuronsOut) { const key = n.roi ?? 'null'; roiCounts[key] = (roiCounts[key] ?? 0) + 1; }
 
   return {
     meta: {
@@ -165,6 +191,8 @@ export function buildConnectome(rawNeurons, rawEdges, {
       // allowlist 로 실제 들어온 type 문자열 (정렬), KC 플래그 수
       outputAllowlisted: [...new Set(output.filter((n) => isAllowlisted(n.type)).map((n) => n.type))].sort(),
       kcCount: neuronsOut.filter((n) => n.isKC).length,
+      // 주 뉴로필(primary ROI)별 뉴런 수. 못 정한 뉴런은 'null' 키.
+      roiCounts: Object.fromEntries(Object.entries(roiCounts).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))),
     },
     neurons: neuronsOut,
     edges: indexed,
@@ -190,11 +218,13 @@ export function parseConnectome(input) {
   if (!isInt(m.weightThreshold)) fail('meta.weightThreshold must be an integer');
   if (!Array.isArray(m.outputAllowlisted) || !m.outputAllowlisted.every((t) => typeof t === 'string')) fail('meta.outputAllowlisted must be a string array');
   if (!isInt(m.kcCount)) fail('meta.kcCount must be an integer');
+  if (!m.roiCounts || typeof m.roiCounts !== 'object' || !Object.values(m.roiCounts).every(isInt)) fail('meta.roiCounts must map ROI → integer');
 
   if (!Array.isArray(c.neurons)) fail('neurons must be an array');
   if (c.neurons.length !== m.nodeCount) fail(`neurons.length ${c.neurons.length} != meta.nodeCount ${m.nodeCount}`);
   const counts = { input: 0, hidden: 0, output: 0 };
   let kc = 0;
+  const roiCounts = {};
   c.neurons.forEach((n, i) => {
     if (!n || typeof n !== 'object') fail(`neurons[${i}] must be an object`);
     if (!isInt(n.id)) fail(`neurons[${i}].id must be an integer`);
@@ -206,13 +236,20 @@ export function parseConnectome(input) {
     }
     if (typeof n.isKC !== 'boolean' || typeof n.isAllowlisted !== 'boolean') fail(`neurons[${i}].isKC/isAllowlisted must be booleans`);
     if (n.isAllowlisted && n.layer !== 'output') fail(`neurons[${i}] isAllowlisted but layer is ${n.layer}`);
+    if (n.roi !== null && (typeof n.roi !== 'string' || !n.roi)) fail(`neurons[${i}].roi must be a non-empty string or null`);
     counts[n.layer]++;
     if (n.isKC) kc++;
+    const key = n.roi ?? 'null';
+    roiCounts[key] = (roiCounts[key] ?? 0) + 1;
   });
   for (const l of LAYERS) {
     if (counts[l] !== m.layerSizes[l]) fail(`layer ${l}: counted ${counts[l]} != meta.layerSizes.${l} ${m.layerSizes[l]}`);
   }
   if (kc !== m.kcCount) fail(`kcCount: counted ${kc} != meta.kcCount ${m.kcCount}`);
+  const roiKeys = new Set([...Object.keys(roiCounts), ...Object.keys(m.roiCounts)]);
+  for (const key of roiKeys) {
+    if ((roiCounts[key] ?? 0) !== (m.roiCounts[key] ?? 0)) fail(`roiCounts[${key}]: counted ${roiCounts[key] ?? 0} != meta ${m.roiCounts[key] ?? 0}`);
+  }
 
   if (!Array.isArray(c.edges)) fail('edges must be an array');
   if (c.edges.length !== m.edgeCount) fail(`edges.length ${c.edges.length} != meta.edgeCount ${m.edgeCount}`);
@@ -225,7 +262,7 @@ export function parseConnectome(input) {
 // ---------- 그래프 검사 (validate 스크립트용) ----------
 
 // 각 항목 { name, ok, detail } 배열을 돌려준다. 파일 크기 등 I/O 검사는 스크립트 쪽.
-export function checkGraph(c, { maxOrphanRatio = 0.05 } = {}) {
+export function checkGraph(c, { maxOrphanRatio = 0.05, maxRoiNullRatio = 0.10 } = {}) {
   const n = c.neurons.length;
   const results = [];
   const push = (name, ok, detail) => results.push({ name, ok, detail });
@@ -282,6 +319,12 @@ export function checkGraph(c, { maxOrphanRatio = 0.05 } = {}) {
   for (let i = 0; i < n; i++) if (indeg[i] === 0 && outdeg[i] === 0) orphans++;
   const ratio = n ? orphans / n : 0;
   push(`orphan ratio < ${maxOrphanRatio * 100}%`, ratio < maxOrphanRatio, `${orphans}/${n} = ${(ratio * 100).toFixed(2)}%`);
+
+  const roiNull = c.neurons.filter((x) => x.roi === null).length;
+  const roiNullRatio = n ? roiNull / n : 0;
+  const roiCount = Object.keys(c.meta.roiCounts).filter((k) => k !== 'null').length;
+  push(`roi null ratio < ${maxRoiNullRatio * 100}%`, roiNullRatio < maxRoiNullRatio,
+    `${roiNull}/${n} = ${(roiNullRatio * 100).toFixed(2)}% null, ${roiCount} distinct primary ROIs`);
 
   return results;
 }

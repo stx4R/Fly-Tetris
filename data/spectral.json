@@ -1,0 +1,25 @@
+{
+  "1": {
+    "alpha": 1,
+    "rhoUnit": 0.9996625020887736,
+    "criticalG": 1.0003376118545222,
+    "rayleigh": 0.9996625002409711,
+    "converged": true,
+    "iterations": 94,
+    "ms": 101
+  },
+  "computedAt": "2026-09-15T04:09:36.294Z",
+  "dataset": "hemibrain:v1.2.1",
+  "nodeCount": 8000,
+  "edgeCount": 459168,
+  "method": "power iteration on W_unit^T, positive seeded start, tol 1e-6 relative on ||Ax|| for 3 consecutive iterations",
+  "0.5": {
+    "alpha": 0.5,
+    "rhoUnit": 59.2195987327649,
+    "criticalG": 0.016886301518397862,
+    "rayleigh": 59.21959873202849,
+    "converged": true,
+    "iterations": 39,
+    "ms": 51
+  }
+}

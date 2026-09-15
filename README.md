@@ -3,18 +3,20 @@
 초파리 hemibrain 커넥톰의 실제 시냅스 연결을 고정 리저버로 쓰고, 리드아웃만 학습시켜 테트리스를
 플레이하는 시뮬레이터. 최종 산출물은 GitHub Pages 정적 웹 시각화 + 보고서.
 
-**현재 단계: 2단계 — 테트리스 엔진 + 스파이킹 리저버 + 인코딩/디코딩 + 캘리브레이션**
-(학습 루프·null model·ablation 은 3단계, 렌더링은 4단계)
+**현재 단계: 3단계 — 동역학 수리 (스펙트럼 재파라미터화·SFA·지역 억제·gap) + 캘리브레이션 v2 (프로브 기반)**
+(학습 루프·null model·ablation 은 4단계, 렌더링은 5단계)
 
 ## 사용
 
 ```bash
 # 토큰: 환경변수 NEUPRINT_TOKEN 또는 .env / .env.local (커밋 금지)
-npm run extract    # neuPrint → data/raw/ 캐시 → data/connectome.json
-npm run validate   # 스키마 + 그래프 검사, 실패 시 exit 1
+npm run extract    # neuPrint → data/raw/ 캐시 → data/connectome.json (뉴런별 primary ROI 포함)
+npm run validate   # 스키마 + 그래프 검사 (roi null < 10% 포함), 실패 시 exit 1
 npm test           # node:test 단위 테스트
-npm run calibrate  # (g, k) 격자 탐색 → data/calibration.json (전 목표 만족점이 없으면 exit 1)
-npm run smoke      # 캘리브레이션 점 + 랜덤 리드아웃으로 500조각 플레이, 처리량 측정
+npm run spectral   # W_unit 스펙트럼 반경 (alpha 0.5, 1.0) → data/spectral.json, 수렴 실패 시 exit 1
+npm run calibrate  # 시드 랜덤 탐색 → 상위 20점 재평가 → 프로브 선택 → 게이트. 게이트 미달/통과점 없음 시 exit 1 (워커 8개, ~6분)
+npm run calibrate-esn  # Plan B: 같은 CSR 위 ESN 을 같은 프로브·게이트로 (게이트 미달 시에만, ~16분)
+npm run smoke      # 선택점 + 랜덤 리드아웃으로 500조각 플레이, 처리량 ≥ 300 배치/s 확인
 ```
 
 `data/raw/` 는 API raw 응답 캐시다. 재실행 시 API 를 다시 호출하지 않는다. 처음부터 다시 뽑으려면 지운다.
@@ -28,7 +30,10 @@ npm run smoke      # 캘리브레이션 점 + 랜덤 리드아웃으로 500조�
 - 중간층: 입력층에서 2-hop 이내 도달 가능 AND 출력층으로 2-hop 이내 도달하는, type 이 붙은 Traced 뉴런
 - 간선: `ConnectsTo.weight` (시냅스 수) ≥ 3. 총 노드가 8000 을 넘으면 중간층을 부분그래프 내
   total synaptic weight 상위 순으로 잘라 맞춤 (입력·출력층은 전부 유지)
-- 뉴런 플래그 `isKC` (버섯체 Kenyon cell), `isAllowlisted` — 3단계 ablation 태그. 제거하지 않는다.
+- 뉴런 플래그 `isKC` (버섯체 Kenyon cell), `isAllowlisted` — 4단계 ablation 태그. 제거하지 않는다.
+- 뉴런별 `roi`: neuPrint `roiInfo` 에서 데이터셋의 primary ROI (`:Meta.primaryRois`, 63개 최하위 ROI) 중
+  pre+post 시냅스 수 최대인 것. super-ROI(예: `VLNP(R)` ⊃ `PVLP(R)`) 는 하위를 포함해 항상 이기므로 후보에서 제외.
+  8000 뉴런 중 null 3개, 44개 ROI. `meta.roiCounts` 에 ROI 별 수. 지역 억제 풀의 단위다.
 
 출력: `data/connectome.json` (minified, 런타임 번들용), `data/connectome.meta.json` (meta 만 pretty).
 `edges` 의 인덱스는 `neurons` 배열 위치 인덱스다 (bodyId 아님). 뉴런 순서는 input → hidden → output 블록.
@@ -38,38 +43,80 @@ npm run smoke      # 캘리브레이션 점 + 랜덤 리드아웃으로 500조�
 - **테트리스** (`src/tetris.js`): 10×20, 7-bag, SRS 4 회전 상태, 배치 단위 API (하드드롭만).
   행동 = (col, rot) 40개. next piece 는 노출하지 않는다.
 - **교사** (`src/heuristic.js`): Dellacherie 6 특징 고정 가중치. 시드 10개 × 2000조각 전부 생존.
-- **리저버** (`src/reservoir.js`): 이벤트 구동 LIF. dt 1ms, τ 20ms, V_th 1, 불응기 2ms.
-  `w_eff = g·weight/√(수신 뉴런 총 입력 weight)`. 전역 억제 `I_inh = -k·(직전 스텝 발화 수/N)`.
-  배치당 50 스텝, 출력 = DN 107개의 창 발화 수. 배치 간 리셋 없음, 에피소드 간 리셋.
-  모든 간선은 흥분성 (hemibrain v1.2.1 에 신경전달물질 라벨 없음).
+- **리저버** (`src/reservoir.js`): 이벤트 구동 LIF. dt 1ms, τ_m 20ms, V_th 1, 불응기 2ms.
+  `w_eff = g·weight/(수신 뉴런 총 입력 weight)^alpha`, **g 는 직접 주지 않고 `g = rho_target / rho_unit(alpha)`**
+  (`src/spectral.js` 의 거듭제곱법, `data/spectral.json`). 배치당 50 스텝, 출력 = DN 107개의 창 발화 수.
+  모든 간선은 흥분성 (hemibrain v1.2.1 에 신경전달물질 라벨 없음). 3단계 추가분:
+  - 스파이크 빈도 적응(SFA): `a_i(t+1) = a_i·e^{-dt/100ms} + b·spike_i`, 막전위가 `V_rest − a_i` 로 이완
+    (스텝당 `−a_i(1−e^{-dt/τm})`). 이벤트 구동: 증분은 발화 뉴런에만, 감쇠·소거는 a≠0 목록에만.
+    `a_i < b·1e-4` 면 정확히 0 (모델의 일부, naive 매스텝 갱신과 비트 일치 — 테스트).
+  - 억제 `I_inh(i) = −k_local·(직전 스텝 ROI(i) 내 발화 수 / ROI 뉴런 수) − k_global·(직전 스텝 발화 수 / N)`.
+    roi null 인 뉴런은 전역 항만.
+  - 배치 간 감쇠 구간 `gap` ∈ {0, 25, 50 스텝 (입력 0), 'full' (완전 리셋)}. 에피소드 간은 항상 리셋.
 - **인코딩** (`src/encode.js`): 입력 뉴런마다 10×20 격자 위 가우시안 RF (σ = 2셀). 셀 값 빈칸 0 /
   고정 블록 1 / 현재 조각(스폰 위치) 2. `I_ext = G_IN · Σ RF·value`, RF 는 뉴런별 합 1 로 정규화.
 - **디코딩** (`src/decode.js`): 107×40 선형 리드아웃, 불법 배치 마스킹 후 argmax. 2단계는 시드 랜덤 초기화만.
 - **결정성**: 모든 난수는 xorshift128+ (`src/prng.js`). 같은 시드·입력이면 비트 동일.
 
+## 캘리브레이션 v2 (3단계)
+
+- **지표** (`src/metrics.js`): meanRate, medianRate(뉴런별 평균 발화율의 중앙값), activeFrac,
+  ceilingFrac(창 내 ≥15회 = 불응기 한계, 폭주 하드 제약), topSpikeShare(상위 1% 뉴런의 발화 점유율 = 승자독식 측정치).
+  유효 랭크·분리도는 보조. 2단계의 "20회 포화" 지표는 도달 불가라 삭제.
+- **프로브** (`src/probe.js`, 릿지 회귀 닫힌형, 학습 루프 아님): (a) DN 발화율 → 교사 배치의 Dellacherie 6특징 R²,
+  (b) DN 발화율 → 교사 배치(40클래스) 합법 마스킹 top-1, (c) 통제군 = 표본별 뉴런 축 셔플. 5-fold CV, λ 는 내부 4-fold.
+- **탐색** (`scripts/calibrate.js`): rho_target ∈ [0.8, 1.3], b ∈ [0, 2], k_local ∈ [0, 20], k_global ∈ [0, 5],
+  alpha ∈ {0.5, 1}, gap ∈ {0, 25, 50, full}. 시드 랜덤 1200점(보드 200) → 하드 제약(ceiling < 5%, top1% share < 30%,
+  발화 DN ≥ 40, median ∈ [0.5, 40] Hz) 통과 상위 20점을 보드 2000개로 재평가 → 프로브 (b) 최대 선택 →
+  게이트 (b) − 통제군 ≥ +10%p. 스펙 범위에 통과점이 없으면 rho ≤ 5.0 확장 탐색을 `extended` 로 따로 기록한다
+  (하드 제약은 그대로). b = 0 고정 / k_local = 0 고정 부분 탐색 300점씩은 보고용.
+- **참조 프로브** `inputReference`: 같은 프로브를 원 입력(보드 200셀 + 조각 one-hot)에 적용 — 선형 리드아웃의 과제 상한.
+- **Plan B** (`src/esn.js`, `scripts/calibrate-esn.js`): 같은 CSR 위 누설 레이트 유닛 `x ← (1−lr)x + lr·tanh(Wx + s·I_ext)`,
+  W 는 rho_target 로 직접 스케일. 탐색축 rho, lr, 입력 스케일, alpha, gap. 하드 제약은 포화(|x|>0.9) < 5%, 활성 DN ≥ 40,
+  분리도 ≥ 0.01 (입력 무관 고정점 배제).
+
+### 3단계 결과 (요약 — 자세히는 `docs/stage3-calibration.md`)
+
+- 스펙 범위 rho ∈ [0.8, 1.3] 통과 **0/1200** (전부 침묵). 확장 rho ≤ 5: **4/1200**; k_local = 0 부분 탐색 **29/300**; b = 0 부분 탐색 **0/300**.
+  통과점은 전부 alpha 1, rho 3.3–5, k_local ≤ 0.33, b > 0. **승자독식을 깬 것은 SFA** (b = 0 이면 mean 30–50 Hz 에 median 0 Hz 로 양극화);
+  지역 억제는 k_local > 0.5 에서 네트워크를 통째로 끈다.
+- 선택점 rho 4.15 / alpha 1 / b 0.35 / k_local 0.03 / k_global 1.27 / gap full: mean 33 Hz, median 25 Hz, ceiling 0%, 상위 1% 점유 3.4%,
+  DN 97/107, 랭크 92. 프로브 (b) top-1 15.4% vs 통제 14.2% → **게이트(+10%p) 미달**. 프로브 (a) 특징 R² 0.51.
+- **Plan B (ESN)** 도 미달: 39/240 통과, 선택점 rho 1.21 / alpha 0.5 / lr 0.33 / 입력 스케일 7.2 / gap 50 → top-1 15.5% vs 14.2% (+1.3p),
+  특징 R² 0.50 (상위 10점 0.59–0.60). 스파이킹·레이트·원 입력 세 표현이 프로브 (b) 에서 똑같이 우연 수준이다.
+- **게이트는 원 입력으로도 못 넘는다**: 보드 셀 + 조각을 그대로 넣은 선형 프로브가 19.1% vs 14.8% (+4.3p, 2000 보드).
+  교사의 행동은 보드의 비선형 함수라 프로브 (b) 는 이 과제에서 선형 디코딩 가능성의 척도가 아니다. 특징 R² 로 보면 원 입력 0.61,
+  스파이킹 0.51, ESN 0.50–0.60 — 셋 다 비슷하고, 셔플 통제군(0.45–0.56)이 높아 뉴런 정체성이 담는 몫은 어디서나 작다.
+- gap: 완전 리셋에서만 특징 R² 0.45–0.51, gap 0/25/50 은 0.13–0.15. 지속 어트랙터가 50 스텝 감쇠로는 안 사라진다.
+- smoke: 660 배치/s (reservoir 1.33 ms/배치, gap full), 불법 배치 0, 도달불가 DN 7개 발화 0.
+
 ### 알려진 한계
 
 - **RF 배정은 임의적이다.** type 별 bodyId 순서로 격자에 균등 분산했을 뿐, 실제 LC 뉴런의 시야
   지도(망막위상)와 무관하다. soma 좌표는 1,360개가 null 이고 망막위상과의 대응을 검증할 수 없어 쓰지 않았다.
-- **캘리브레이션 목표를 만족하는 (g, k) 가 없다.** 모든 간선이 흥분성이고 억제가 전역 균일이라
-  강하게 재귀 연결된 AVLP 군집이 불응기 한계(~300 Hz)로 점화하며 나머지를 억제하는 승자독식 상태와,
-  전부 침묵하는 상태 사이에 완만한 중간 영역이 없다. `data/calibration.json` 의 격자 결과 참고.
-  `smoke` 는 이 경우 "만족한 목표 수 최다, 동률 시 분리도 최대" 인 fallback 점을 경고와 함께 쓴다.
-- 2ms 불응기에서 50 스텝 창의 최대 발화 수는 17이라 "창 내 20회 이상" 포화 기준은 물리적으로
-  도달 불가다. 참고용으로 ≥ 15회(≥ 300 Hz) 비율(`ceilingFrac`)을 같이 낸다.
+- **선형 스펙트럼 판정은 LIF 절벽을 4배 낮게 예측한다.** alpha 0.5 에서 rho_unit = 59.2 → rho = 1 은 g = 0.0169
+  인데 2단계 관측 절벽은 g ≈ 0.07 (rho ≈ 4). 문턱·누설이 있는 LIF 는 단위 입력당 스파이크 이득이 1 보다 훨씬 작아
+  선형화가 보수적이다. 그래서 스펙의 rho_target ∈ [0.8, 1.3] 은 중간층이 거의 침묵하는 영역이고 (median 0 Hz),
+  확장 탐색(rho ≤ 5) 이 필요했다.
+- 2ms 불응기에서 50 스텝 창의 최대 발화 수는 17이라 "창 내 20회 이상" 포화 기준은 물리적으로 도달 불가다 (삭제).
+- **프로브 (b)(교사 행동 top-1) 는 선형으로는 원 입력에서도 +4.3p 가 한계**라 +10%p 게이트를 어떤 표현도 못 넘는다. 4단계 학습의
+  성패 예측에는 특징 R² (프로브 (a)) 와 비선형 리드아웃이 필요하다.
+- k_local ∈ [0, 20] 은 스텝당 증분 규약에서 유효 범위(< 0.5)보다 약 50배 넓어 탐색 표본의 96% 가 침묵 영역에 떨어졌다.
 
 ## 구조
 
 ```
 scripts/extract-connectome.js   neuPrint 호출·캐시·출력 (I/O)
 scripts/validate-connectome.js  커넥톰 검증 (I/O)
-scripts/calibrate.js            (g, k) 격자 탐색 → data/calibration.json
+scripts/spectral.js             거듭제곱법 스펙트럼 반경 → data/spectral.json
+scripts/calibrate.js            시드 랜덤 탐색 + 재평가 + 게이트 → data/calibration.json
 scripts/smoke-run.js            500조각 스모크 플레이, 처리량
-src/connectome.js               층 판정, 2-hop 후보, 절단, 스키마 파서, 그래프 검사
+src/connectome.js               층 판정, 2-hop 후보, 절단, primary ROI, 스키마 파서, 그래프 검사
 src/tetris.js  src/heuristic.js 엔진, Dellacherie 교사
-src/reservoir.js                CSR + 이벤트 구동 LIF
+src/spectral.js                 단위 CSR (alpha 정규화), 거듭제곱법
+src/reservoir.js                이벤트 구동 LIF + SFA + ROI 억제 풀 + gap
 src/encode.js  src/decode.js    보드 → 전류, DN 발화율 → 행동
-src/calibration.js src/metrics.js  보드 생성·지표 (분리도, 유효 랭크)
+src/calibration.js src/metrics.js src/probe.js  보드·교사 라벨 생성, 지표, 릿지 프로브
 src/prng.js                     xorshift128+
 test/                           node:test 단위 테스트
 ```

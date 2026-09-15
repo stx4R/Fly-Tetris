@@ -4,6 +4,9 @@
 //
 // raw API 응답은 data/raw/ 에 캐시되어 재실행 시 네트워크를 타지 않는다.
 // 인증: NEUPRINT_TOKEN 환경변수 (없으면 .env / .env.local 에서 읽음).
+//
+// 뉴런별 주 뉴로필(roi): 1단계 raw 캐시(neurons-*.json) 에는 roiInfo 가 없어서, 선택된 8000 뉴런의
+// roiInfo 만 따로 받아 캐시한다 (raw/roiinfo/, 500 bodyId 씩). primary ROI 목록은 :Meta.primaryRois (raw/meta.json).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -18,6 +21,7 @@ const ENDPOINT = 'https://neuprint.janelia.org/api/custom/custom';
 
 const NEURON_PAGE = 5000;   // 뉴런 목록 페이지 크기
 const EDGE_CHUNK = 500;     // 간선 조회 시 한 요청당 pre-synaptic bodyId 수
+const ROI_CHUNK = 500;      // roiInfo 조회 시 한 요청당 bodyId 수
 const CONCURRENCY = 3;
 const MAX_RETRY = 5;
 const REQUEST_TIMEOUT_MS = 180_000;
@@ -141,6 +145,31 @@ async function fetchEdges(neuronIds, token) {
   return parts.flat();
 }
 
+// 데이터셋의 primary ROI 목록 (최하위 ROI 집합; super-ROI 제외)
+async function fetchPrimaryRois(token) {
+  const body = await cached('meta', () => cypher('MATCH (m:Meta) RETURN m.primaryRois AS primaryRois', token));
+  const rois = body.data[0]?.[0];
+  if (!Array.isArray(rois) || !rois.length) throw new Error('Meta.primaryRois missing');
+  return rois;
+}
+
+// 지정 bodyId 들의 roiInfo (JSON 문자열). Map bodyId → roiInfo.
+async function fetchRoiInfo(bodyIds, token) {
+  const chunks = [];
+  for (let i = 0; i < bodyIds.length; i += ROI_CHUNK) chunks.push(bodyIds.slice(i, i + ROI_CHUNK));
+  console.log(`  ${chunks.length} roiInfo chunks of <= ${ROI_CHUNK} neurons`);
+  const parts = await mapLimit(chunks, CONCURRENCY, async (ids, i) => {
+    const hash = createHash('sha1').update(ids.join(',')).digest('hex').slice(0, 8);
+    const body = await cached(`roiinfo/${String(i).padStart(3, '0')}-${hash}`, () => cypher(
+      `MATCH (n:Neuron) WHERE n.bodyId IN [${ids.join(',')}]
+       RETURN n.bodyId AS id, n.roiInfo AS roiInfo`, token));
+    return body.data;
+  });
+  const map = new Map();
+  for (const [id, roiInfo] of parts.flat()) map.set(id, roiInfo);
+  return map;
+}
+
 function topTypes(neurons, layer, k = 10) {
   const count = new Map();
   for (const n of neurons) if (n.layer === layer) count.set(n.type, (count.get(n.type) ?? 0) + 1);
@@ -155,18 +184,23 @@ async function main() {
   }
   mkdirSync(RAW_DIR, { recursive: true });
 
-  console.log(`[1/3] neurons (${DATASET})`);
+  console.log(`[1/4] neurons (${DATASET})`);
   const neurons = await fetchNeurons(token);
   console.log(`  ${neurons.length} typed Traced neurons`);
 
-  console.log('[2/3] edges');
+  console.log('[2/4] edges');
   const edges = await fetchEdges(neurons.map((n) => n.id), token);
   console.log(`  ${edges.length} edges with weight >= ${WEIGHT_THRESHOLD}`);
 
-  console.log('[3/3] build connectome');
-  const connectome = buildConnectome(neurons, edges, {
-    weightThreshold: WEIGHT_THRESHOLD, maxNodes: MAX_NODES, extractedAt: new Date().toISOString(),
-  });
+  console.log('[3/4] roiInfo of the selected neurons');
+  const buildOpts = { weightThreshold: WEIGHT_THRESHOLD, maxNodes: MAX_NODES, extractedAt: new Date().toISOString() };
+  const selectedIds = buildConnectome(neurons, edges, buildOpts).neurons.map((n) => n.id); // 결정적이라 두 번 빌드해도 같은 집합
+  const primaryRois = await fetchPrimaryRois(token);
+  const roiInfoById = await fetchRoiInfo(selectedIds, token);
+  console.log(`  ${primaryRois.length} primary ROIs, roiInfo for ${roiInfoById.size}/${selectedIds.length} neurons`);
+
+  console.log('[4/4] build connectome');
+  const connectome = buildConnectome(neurons, edges, { ...buildOpts, roiInfoById, primaryRois });
 
   const outFile = path.join(DATA_DIR, 'connectome.json');
   const metaFile = path.join(DATA_DIR, 'connectome.meta.json');
@@ -181,6 +215,9 @@ async function main() {
   console.log(`  dropped: ${meta.droppedSelfLoops} self-loops, ${meta.droppedDuplicateEdges} duplicate edges`);
   console.log('  top input types :', topTypes(connectome.neurons, 'input').map(([t, c]) => `${t}=${c}`).join(' '));
   console.log('  top output types:', topTypes(connectome.neurons, 'output').map(([t, c]) => `${t}=${c}`).join(' '));
+  const roiEntries = Object.entries(meta.roiCounts);
+  console.log(`  roi: ${roiEntries.filter(([k]) => k !== 'null').length} distinct, null ${meta.roiCounts.null ?? 0}/${meta.nodeCount}`);
+  console.log('  top rois:', roiEntries.slice(0, 8).map(([r, c]) => `${r}=${c}`).join(' '));
 }
 
 main().catch((err) => {

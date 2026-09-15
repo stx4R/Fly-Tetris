@@ -1,15 +1,19 @@
 {
   "name": "vfb-tetris",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 1: data layer.",
-  "engines": { "node": ">=20" },
+  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 3: dynamics repair + calibration v2.",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "extract": "node scripts/extract-connectome.js",
     "validate": "node scripts/validate-connectome.js",
     "test": "node --test",
+    "spectral": "node scripts/spectral.js",
     "calibrate": "node scripts/calibrate.js",
+    "calibrate-esn": "node scripts/calibrate-esn.js",
     "smoke": "node scripts/smoke-run.js"
   }
 }
