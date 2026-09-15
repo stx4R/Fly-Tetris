@@ -5,6 +5,8 @@
 //   train      리드아웃 학습 + 테스트 회귀 지표
 //   play       학습된 리드아웃으로 게임 (시드 목록)
 //   baseline   무작위 / 교사 게임
+//   separation 결정 내 분리 지표 (distinctFrac, meanDNDiff, 전파 프로파일, withinKendall) — 5단계
+// 모든 리저버 작업은 T (창 스텝) 와 gIn (인코더 이득) 을 받는다 (기본 50, G_IN).
 // 조건 커넥톰·스펙트럼·인코더는 키별로 캐시한다 (최근 2개).
 
 import { readFileSync } from 'node:fs';
@@ -14,7 +16,9 @@ import { parentPort } from 'node:worker_threads';
 import { parseConnectome } from '../src/connectome.js';
 import { createEncoder } from '../src/encode.js';
 import { computeSpectral } from '../src/spectral.js';
-import { evaluatePoint, generateBoards } from '../src/calibration.js';
+import { checkHard, evaluatePoint, generateBoards } from '../src/calibration.js';
+import { measureSeparation } from '../src/separation.js';
+import { G_IN } from '../src/encode.js';
 import { buildCondition } from '../src/nullmodels.js';
 import { deserialize, FEATURE_WEIGHTS } from '../src/afterstate.js';
 import { readoutFromJSON, targetRows, trainReadout, valueOf } from '../src/readout.js';
@@ -28,17 +32,33 @@ const base = parseConnectome(readFileSync(path.join(ROOT, 'data', 'connectome.js
 let afterstates = null;
 const getAfterstates = () => (afterstates ??= deserialize(JSON.parse(readFileSync(path.join(ROOT, 'data', 'afterstates.json'), 'utf8'))));
 
+// 분리 측정용 결정 표본: 분할별로 시드 셔플 후 앞 n 개. { boards, scores }
+const decisionSets = new Map();
+function decisionSet(part, n, seed) {
+  const key = `${part}:${n}:${seed}`;
+  if (decisionSets.has(key)) return decisionSets.get(key);
+  const { samples, decisions, split } = getAfterstates();
+  const g = new Set(split[part]);
+  const idx = decisions.filter((d) => g.has(d.gameId)).map((d) => d.index);
+  const rng = createRng(seed);
+  for (let i = idx.length - 1; i > 0; i--) { const j = rng.int(i + 1); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+  const set = idx.slice(0, n).map((i) => ({ boards: decisions[i].samples.map((k) => samples[k].board), scores: decisions[i].samples.map((k) => samples[k].score) }));
+  decisionSets.set(key, set);
+  return set;
+}
+
 let calBoards = null;
 const getBoards = (n, seed) => {
   if (!calBoards || calBoards.length < n || calBoards.seed !== seed) { calBoards = generateBoards(n, { seed }); calBoards.seed = seed; }
   return calBoards.slice(0, n);
 };
 
-const cache = new Map(); // key → { connectome, spectral, encoder }
+const cache = new Map(); // key → { connectome, spectral, encoders, iExts }
 function condition(key, cond, seed) {
   if (cache.has(key)) return cache.get(key);
   const connectome = buildCondition(base, cond, seed);
-  const entry = { connectome, spectral: computeSpectral(connectome, { maxIter: 500, tol: 1e-6, seed: 1 }), encoder: createEncoder(connectome), iExts: new Map() };
+  const entry = { connectome, spectral: computeSpectral(connectome, { maxIter: 500, tol: 1e-6, seed: 1 }), encoders: new Map(), iExts: new Map() };
+  entry.encoder = (gIn = G_IN) => { if (!entry.encoders.has(gIn)) entry.encoders.set(gIn, createEncoder(connectome, { gIn })); return entry.encoders.get(gIn); };
   if (cache.size >= 2) cache.delete(cache.keys().next().value);
   cache.set(key, entry);
   return entry;
@@ -59,15 +79,37 @@ function handle(job) {
     case 'calibrate': {
       const e = condition(job.key, job.condition, job.seed);
       const samples = getBoards(job.boards, job.boardSeed);
-      const ck = `${job.boardSeed}:${job.boards}`;
-      if (!e.iExts.has(ck)) e.iExts.set(ck, samples.map((s) => e.encoder.encode(s.board, s.piece)));
-      const m = evaluatePoint(e.connectome, e.spectral, samples, e.iExts.get(ck), job.params, { gap: job.gap, seed: job.boardSeed, probe: job.probe === 'hard' ? (r) => r.hard.all : job.probe });
+      const gIn = job.gIn ?? G_IN, T = job.T ?? 50;
+      const ck = `${job.boardSeed}:${job.boards}:${gIn}`;
+      if (!e.iExts.has(ck)) e.iExts.set(ck, samples.map((s) => e.encoder(gIn).encode(s.board, s.piece)));
+      // 프로브는 3단계 하드 제약 통과 시에만; 분리 지표(job.separation = { test, train, seed })도 통과 시에만 잰다
+      const m = evaluatePoint(e.connectome, e.spectral, samples, e.iExts.get(ck), job.params, { T, gap: job.gap, seed: job.boardSeed, probe: job.probe === 'hard' ? (r) => r.hard.all : job.probe });
+      m.gIn = gIn;
+      if (job.separation && m.hard.all && !m.aborted) {
+        const f = createFeaturizer(e.connectome, job.params, e.spectral, { T, gIn });
+        const dims = { N: f.reservoir.N, nInput: f.reservoir.nInput, outputStart: f.reservoir.outputStart };
+        const sep = measureSeparation(f.featurizeBoth, decisionSet('test', job.separation.test, job.separation.seed), dims,
+          job.separation.train ? { trainDecisions: decisionSet('train', job.separation.train, job.separation.seed + 1) } : {});
+        delete sep.withinKendallTaus;
+        m.separation = sep;
+        m.hard = checkHard(m, sep);
+      } else if (job.separation) {
+        m.hard = { ...m.hard, distinct: false, dnDiff: false, all: false };
+      }
       return { ...m, probe: probeSummary(m.probe) };
+    }
+    case 'separation': {
+      const e = condition(job.key, job.condition, job.seed);
+      const f = createFeaturizer(e.connectome, job.params, e.spectral, { T: job.T ?? 50, gIn: job.gIn ?? G_IN });
+      const dims = { N: f.reservoir.N, nInput: f.reservoir.nInput, outputStart: f.reservoir.outputStart };
+      const sep = measureSeparation(f.featurizeBoth, decisionSet('test', job.test, job.seedSet ?? 1), dims,
+        job.train ? { trainDecisions: decisionSet('train', job.train, (job.seedSet ?? 1) + 1) } : {});
+      return sep;
     }
     case 'featurize': {
       const e = condition(job.key, job.condition, job.seed);
       const { samples } = getAfterstates();
-      const f = createFeaturizer(e.connectome, job.params, e.spectral);
+      const f = createFeaturizer(e.connectome, job.params, e.spectral, { T: job.T ?? 50, gIn: job.gIn ?? G_IN });
       const n = job.to - job.from;
       const dn = new Float32Array(n * f.dim);
       const act = job.activity ? new Float32Array(n * 5) : null;
@@ -78,7 +120,7 @@ function handle(job) {
         if (act) act.set(r.activity, i * 5);
         spikes += r.activity[0];
       }
-      return { dn, act, dim: f.dim, meanRateHz: spikes / n / e.connectome.neurons.length / 0.05, transfer: [dn.buffer, ...(act ? [act.buffer] : [])] };
+      return { dn, act, dim: f.dim, meanRateHz: spikes / n / e.connectome.neurons.length / (f.T / 1000), transfer: [dn.buffer, ...(act ? [act.buffer] : [])] };
     }
     case 'train': {
       const { samples, decisions, split } = getAfterstates();
@@ -113,7 +155,7 @@ function handle(job) {
     }
     case 'play': {
       const e = condition(job.key, job.condition, job.seed);
-      const f = createFeaturizer(e.connectome, job.params, e.spectral, { mode: job.mode ?? 'dn' });
+      const f = createFeaturizer(e.connectome, job.params, e.spectral, { mode: job.mode ?? 'dn', T: job.T ?? 50, gIn: job.gIn ?? G_IN });
       const predict = readoutFromJSON(job.readout);
       const value = (x) => valueOf(job.target, predict(x), FEATURE_WEIGHTS);
       const agent = createAgent(f.featurize, value);

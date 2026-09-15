@@ -38,7 +38,8 @@ export function assignCenters(neurons) {
   return centers;
 }
 
-export function createEncoder(connectome) {
+// gIn: 외부 전류 이득 (기본 G_IN). 5단계 탐색축 "G_IN 배율" 은 gIn = G_IN × 배율.
+export function createEncoder(connectome, { gIn = G_IN } = {}) {
   const N = connectome.neurons.length;
   const centers = assignCenters(connectome.neurons);
   const inputIdx = [...centers.keys()].sort((a, b) => a - b);
@@ -84,11 +85,11 @@ export function createEncoder(connectome) {
       const v = values[c];
       if (v === 0) continue;
       const base = c * nInput;
-      const scale = G_IN * v;
+      const scale = gIn * v;
       for (let i = 0; i < nInput; i++) iExt[i] += scale * rf[base + i];
     }
     return iExt;
   }
 
-  return { N, nInput, centers: centerArr, rf, cellValues, encode };
+  return { N, nInput, gIn, centers: centerArr, rf, cellValues, encode };
 }

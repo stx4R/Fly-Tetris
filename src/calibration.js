@@ -13,11 +13,18 @@ export const FEATURE_NAMES = ['landingHeight', 'erodedPieceCells', 'rowTransitio
 
 // 하드 제약. 통과한 점 중 프로브 (b) top-1 최대를 고른다.
 export const HARD = {
-  ceilingFrac: 0.05,        // 창 내 ≥15회 발화 비율 < 5%
+  ceilingFrac: 0.05,        // 창 내 ≥ 300 Hz (창 50 스텝이면 15회) 발화 비율 < 5%
   topSpikeShare: 0.30,      // 상위 1% 뉴런의 발화 점유율 < 30%
   dnActive: 40,             // 한 번이라도 발화한 DN 수 ≥ 40 / 107
   medianRateHz: [0.5, 40],  // 뉴런별 평균 발화율의 중앙값
 };
+// 5단계 분리 제약 (같은 결정의 후보 afterstate 가 DN 발화 수로 구분되는가) — src/separation.js
+export const HARD_SEP = {
+  distinctFrac: 0.40,       // 결정 내 서로 다른 DN 벡터 수 / 후보 수 ≥ 40%
+  meanDNDiff: 5,            // 후보 쌍 간 발화 수가 다른 DN 수 평균 ≥ 5 / 107
+};
+export const CEILING_HZ = 300;
+export const ceilingAt = (T) => Math.max(1, Math.round(CEILING_HZ * T / 1000)); // 창 T 스텝(ms)에서 ≥ 300 Hz 에 해당하는 발화 수
 export const GATE_MARGIN = 0.10; // 최종 게이트: 프로브 (b) top-1 − 셔플 통제군 ≥ +10%p (절대)
 
 // 실제 플레이 분포에 가까운 보드 + 교사 라벨: 시드 게임을 Dellacherie 0.7 / 무작위 합법 배치 0.3 혼합 정책으로
@@ -65,7 +72,8 @@ export function inputReference(samples, { seed = 1 } = {}) {
   return { top1: pr.top1, controlTop1: pr.control.top1, top1Margin: pr.top1Margin, majorityTop1: pr.majorityTop1, featuresR2: pr.featuresR2, controlFeaturesR2: pr.control.featuresR2, perFeatureR2: pr.perFeatureR2 };
 }
 
-export function checkHard(m) {
+// separation 을 주면 분리 제약도 같이 본다 ({ distinctFrac, meanDNDiff }).
+export function checkHard(m, separation = null) {
   const [lo, hi] = HARD.medianRateHz;
   const checks = {
     ceiling: m.ceilingFrac < HARD.ceilingFrac,
@@ -73,6 +81,10 @@ export function checkHard(m) {
     dnActive: m.dnEverActive >= HARD.dnActive,
     median: m.medianRateHz >= lo && m.medianRateHz <= hi,
   };
+  if (separation) {
+    checks.distinct = separation.distinctFrac >= HARD_SEP.distinctFrac;
+    checks.dnDiff = separation.meanDNDiff >= HARD_SEP.meanDNDiff;
+  }
   return { ...checks, all: Object.values(checks).every(Boolean), met: Object.values(checks).filter(Boolean).length };
 }
 
@@ -95,20 +107,20 @@ export function evaluatePoint(connectome, spectral, samples, iExts, params, {
     countsList.push(counts);
     dnRates.push(res.outputRates(counts, T));
     if (earlyAbort && countsList.length === abortAfter && countsList.length < iExts.length) {
-      const partial = spikeStats(countsList, res.N, T);
+      const partial = spikeStats(countsList, res.N, T, { ceilingAt: ceilingAt(T) });
       if (partial.ceilingFrac > HARD.ceilingFrac * abortFactor) { aborted = true; break; }
     }
   }
   const msPerPlacement = (performance.now() - t0) / countsList.length;
-  const stats = spikeStats(countsList, res.N, T);
+  const stats = spikeStats(countsList, res.N, T, { ceilingAt: ceilingAt(T) });
   const dnEverActive = countsList.reduce((set, c) => {
     for (let i = res.outputStart; i < res.N; i++) if (c[i]) set.add(i);
     return set;
   }, new Set()).size;
   const m = {
-    ...params, gap, g: res.g,
+    ...params, gap, T, g: res.g,
     ...stats, dnEverActive,
-    separation: meanPairwiseCosineDistance(dnRates),
+    cosineSeparation: meanPairwiseCosineDistance(dnRates), // 3단계 보조 지표 (5단계 결정 내 분리도 `separation` 과 다르다)
     rank: effectiveRank(dnRates),
     msPerPlacement, boards: countsList.length, aborted,
   };
@@ -120,13 +132,13 @@ export function evaluatePoint(connectome, spectral, samples, iExts, params, {
 
 // Plan B 의 하드 제약 (스파이킹 제약의 레이트 모델 대응): 포화(|x| > 0.9) 비율 < 5% (≈ ceilingFrac), 활성 DN ≥ 40,
 // 분리도(DN 상태의 평균 쌍별 코사인 거리) ≥ 0.01 — 입력과 무관한 고정점으로 붕괴한 점(모든 보드가 같은 DN 상태)을 거른다.
-export const HARD_ESN = { saturatedFrac: 0.05, dnActive: HARD.dnActive, separation: 0.01 };
+export const HARD_ESN = { saturatedFrac: 0.05, dnActive: HARD.dnActive, cosineSeparation: 0.01 };
 
 export function checkHardESN(m) {
   const checks = {
     saturated: m.saturatedFrac < HARD_ESN.saturatedFrac,
     dnActive: m.dnEverActive >= HARD_ESN.dnActive,
-    separation: m.separation >= HARD_ESN.separation,
+    separation: m.cosineSeparation >= HARD_ESN.cosineSeparation,
   };
   return { ...checks, all: Object.values(checks).every(Boolean), met: Object.values(checks).filter(Boolean).length };
 }
@@ -151,7 +163,7 @@ export function evaluateESNPoint(connectome, spectral, samples, iExts, params, {
   const m = {
     ...params, gap, g: esn.g, model: 'esn',
     meanAbs, saturatedFrac: saturated, dnEverActive: dnActive.size,
-    separation: meanPairwiseCosineDistance(dnStates), rank: effectiveRank(dnStates),
+    cosineSeparation: meanPairwiseCosineDistance(dnStates), rank: effectiveRank(dnStates),
     msPerPlacement, boards: iExts.length,
   };
   m.hard = checkHardESN(m);

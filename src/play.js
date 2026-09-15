@@ -22,22 +22,23 @@ export function activitySummary(counts, N, outputStart, T = WINDOW) {
   return Float32Array.from([total, dnActive, total / N * scale, med * scale, total > 0 ? top / total : 0]);
 }
 
-// 리저버 특징 추출기: board → 리드아웃 입력 (mode 'dn' = DN 발화율 107, 'activity' = 요약 5)
-export function createFeaturizer(connectome, params, spectral, { mode = 'dn' } = {}) {
+// 리저버 특징 추출기: board → 리드아웃 입력 (mode 'dn' = DN 발화율 107, 'activity' = 요약 5).
+// T = 창 길이(스텝), gIn = 인코더 이득 (5단계 탐색축). 후보마다 완전 리셋.
+export function createFeaturizer(connectome, params, spectral, { mode = 'dn', T = WINDOW, gIn } = {}) {
   const res = createReservoir(connectome, params, { spectral });
-  const enc = createEncoder(connectome);
+  const enc = createEncoder(connectome, gIn !== undefined ? { gIn } : {});
   function featurize(board) {
     res.reset();
-    const { counts } = res.run(enc.encode(board), WINDOW);
-    return mode === 'activity' ? activitySummary(counts, res.N, res.outputStart) : res.outputRates(counts);
+    const { counts } = res.run(enc.encode(board), T);
+    return mode === 'activity' ? activitySummary(counts, res.N, res.outputStart, T) : res.outputRates(counts, T);
   }
-  // 두 모드를 한 번에 (C0 특징 추출 시 C6 요약도 같이)
+  // 두 모드를 한 번에 (C0 특징 추출 시 C6 요약도 같이). counts 는 전 뉴런 창 발화 수.
   function featurizeBoth(board) {
     res.reset();
-    const { counts } = res.run(enc.encode(board), WINDOW);
-    return { dn: res.outputRates(counts), activity: activitySummary(counts, res.N, res.outputStart), counts };
+    const { counts } = res.run(enc.encode(board), T);
+    return { dn: res.outputRates(counts, T), activity: activitySummary(counts, res.N, res.outputStart, T), counts };
   }
-  return { featurize, featurizeBoth, reservoir: res, dim: mode === 'activity' ? 5 : res.nOutput };
+  return { featurize, featurizeBoth, reservoir: res, encoder: enc, T, dim: mode === 'activity' ? 5 : res.nOutput };
 }
 
 // value(x) 는 특징 벡터 → 스칼라. 에이전트: choose(board, piece) → { col, rot, action } | null

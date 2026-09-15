@@ -3,7 +3,7 @@
 // 축으로 곱한다. 플레이는 상한(모든 게임이 조각 상한까지 감)과 가정 시나리오(평균 생존 500조각)를 둘 다 낸다.
 // 상한 추정이 --budget-hours (기본 8) 를 넘으면 exit 1.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseConnectome } from '../src/connectome.js';
@@ -35,16 +35,20 @@ async function main() {
   const connectome = parseConnectome(readFileSync(path.join(ROOT, 'data', 'connectome.json'), 'utf8'));
   const spectral = JSON.parse(readFileSync(path.join(ROOT, 'data', 'spectral.json'), 'utf8'));
   const cal = JSON.parse(readFileSync(path.join(ROOT, 'data', 'calibration.json'), 'utf8'));
-  const sel = cal.selected;
+  // 기준 동작점: 1부 선택점이 있으면 그것(T, G_IN 포함), 없으면 3단계 선택점
+  const sepFile = path.join(ROOT, 'data', 'separation-search.json');
+  const sepSel = existsSync(sepFile) ? JSON.parse(readFileSync(sepFile, 'utf8')).selected : null;
+  const sel = sepSel ?? cal.selected;
   const params = { rhoTarget: sel.rhoTarget, alpha: sel.alpha, b: sel.b, kLocal: sel.kLocal, kGlobal: sel.kGlobal };
+  const T = cfg.operating.T, gIn = cfg.operating.gIn;
   const after = deserialize(JSON.parse(readFileSync(path.join(ROOT, 'data', 'afterstates.json'), 'utf8')));
   const nSamples = after.samples.length;
   const candPerDecision = nSamples / after.decisions.length;
   console.log(`config: ${reservoirKeys(cfg).length} reservoir conditions (+C6), play ${cfg.play.games} games × cap ${cfg.play.cap} × ${playCombos(cfg).length} combos, ${cfg.workers} workers`);
-  console.log(`afterstates ${nSamples}, ${candPerDecision.toFixed(1)} candidates/decision; reference reservoir point = stage-3 selection (rho ${sel.rhoTarget}, b ${sel.b})`);
+  console.log(`afterstates ${nSamples}, ${candPerDecision.toFixed(1)} candidates/decision; reference point ${sepSel ? 'separation-search selected' : 'stage-3 selected'} (alpha ${sel.alpha}, rho ${sel.rhoTarget}, b ${sel.b}), T ${T}, G_IN ${gIn}; constraints ${cfg.operating.constraints}`);
 
   // 1. 후보 창 비용 (리셋 + 인코딩 + 50 스텝), afterstate 보드 300개
-  const f = createFeaturizer(connectome, params, spectral);
+  const f = createFeaturizer(connectome, params, spectral, { T, gIn });
   const rng = createRng(1);
   const boards = Array.from({ length: 300 }, () => after.samples[rng.int(nSamples)].board);
   for (let i = 0; i < 30; i++) f.featurize(boards[i]); // 워밍업
@@ -64,11 +68,11 @@ async function main() {
 
   // 3. 캘리브레이션 점 비용 (200 보드, 4단계 범위의 점 3개) + 프로브 비용
   const cb = generateBoards(cfg.calibration.boards, { seed: cfg.seed });
-  const enc = createEncoder(connectome);
+  const enc = createEncoder(connectome, { gIn });
   const iExts = cb.map((s) => enc.encode(s.board, s.piece));
   const pts = [{ rhoTarget: 3.5, b: 0.5, kLocal: 0.1, kGlobal: 1 }, { rhoTarget: 4.2, b: 1.0, kLocal: 0.3, kGlobal: 3 }, { rhoTarget: 4.8, b: 0.2, kLocal: 0.05, kGlobal: 0.5 }];
   let ptMs = 0, ptRate = 0;
-  for (const p of pts) { const r = time(() => evaluatePoint(connectome, spectral, cb, iExts, { alpha: 1, ...p }, { gap: 'full', probe: false })); ptMs += r.ms / pts.length; ptRate += r.r.meanRateHz / pts.length; }
+  for (const p of pts) { const r = time(() => evaluatePoint(connectome, spectral, cb, iExts, { alpha: sel.alpha, ...p }, { T, gap: 'full', probe: false })); ptMs += r.ms / pts.length; ptRate += r.r.meanRateHz / pts.length; }
   const dnRates = cb.map((s) => f.featurize(s.board));
   const probeMs = time(() => runProbes(dnRates, cb, ACTIONS, { seed: 1 })).ms;
   console.log(`[unit] calibration point (${cfg.calibration.boards} boards, no probe): ${ptMs.toFixed(0)} ms (mean rate ${ptRate.toFixed(1)} Hz); probe: ${probeMs.toFixed(0)} ms`);
@@ -93,10 +97,10 @@ async function main() {
   const pool = createPool(new URL('./experiment-worker.js', import.meta.url), cfg.workers);
   await pool.ready;
   // 워커마다 JIT 워밍업이 충분히 되도록 (워커 × 3 작업 × 300 창) 먼저 돌리고, 워커 × 4 작업 × 500 창을 잰다
-  const mk = (count, chunk) => Array.from({ length: count }, (_, i) => { const from = (i * chunk) % (nSamples - chunk); return { type: 'featurize', key: 'C0', condition: 'C0', seed: 0, params, from, to: from + chunk, activity: false }; });
+  const mk = (count, chunk) => Array.from({ length: count }, (_, i) => { const from = (i * chunk) % (nSamples - chunk); return { type: 'featurize', key: 'C0', condition: 'C0', seed: 0, params, T, gIn, from, to: from + chunk, activity: false }; });
   await pool.run(mk(cfg.workers * 3, 300));
   const chunk = 500;
-  const jobs = mk(cfg.workers * 4, chunk);
+  const jobs = mk(cfg.workers * 4, chunk).map((j) => ({ ...j, T, gIn }));
   const t0 = performance.now();
   await pool.run(jobs);
   const wall = performance.now() - t0;
@@ -112,8 +116,11 @@ async function main() {
   const nCond = keys.length + (cfg.conditions.includes('C6') ? 1 : 0);
   const passFrac = 0.4; // 4단계 범위(α1, ρ 3–5, k_local ≤ 0.5)에서 통과 비율 가정 (3단계 k_local=0 부분 탐색 45%)
   const cpuSpeedup = Math.min(cfg.workers, 6); // 프로브·학습 같은 CPU 작업의 병렬 배율 가정 (P-코어 수)
+  // 분리 제약 모드: 3단계 통과점마다 분리 지표 (테스트 결정 × ~21 고유 후보 + 훈련 결정 × ~21) 창이 추가된다
+  const sepWindows = cfg.operating.constraints === 'separation'
+    ? cfg.calibration.points * passFrac * (cfg.calibration.separation.test + cfg.calibration.separation.train) * 21 + cfg.calibration.top * 150 * 21 : 0;
   const winPerCond = {
-    calibration: cfg.calibration.points * cfg.calibration.boards + cfg.calibration.top * cfg.calibration.finalBoards,
+    calibration: cfg.calibration.points * cfg.calibration.boards + cfg.calibration.top * cfg.calibration.finalBoards + sepWindows,
     featurize: nSamples,
   };
   const calibProbeMs = (cfg.calibration.points * passFrac + cfg.calibration.top) * probeMs / cpuSpeedup;

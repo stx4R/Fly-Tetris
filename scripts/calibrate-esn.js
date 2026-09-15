@@ -132,7 +132,7 @@ async function main() {
     let lif = null;
     try { lif = JSON.parse(readFileSync(path.join(ROOT, 'data', 'calibration.json'), 'utf8')); } catch { /* 스파이킹 결과 없음 */ }
     console.log(`\nselected ESN: rho ${s.rhoTarget} alpha ${s.alpha} lr ${s.lr} inputScale ${s.inputScale} gap ${s.gap} (g = ${s.g.toFixed(5)})`);
-    console.log(`  mean|x| ${s.meanAbs.toFixed(3)}, saturated ${(s.saturatedFrac * 100).toFixed(1)}%, DN active ${s.dnEverActive}/107, separation ${s.separation.toFixed(3)}, rank ${s.rank}, ${s.msPerPlacement.toFixed(1)} ms/placement`);
+    console.log(`  mean|x| ${s.meanAbs.toFixed(3)}, saturated ${(s.saturatedFrac * 100).toFixed(1)}%, DN active ${s.dnEverActive}/107, cosine separation ${s.cosineSeparation.toFixed(3)}, rank ${s.rank}, ${s.msPerPlacement.toFixed(1)} ms/placement`);
     console.log(`  probe (b) top-1 ${(s.probe.top1 * 100).toFixed(1)}% vs shuffle control ${(s.probe.controlTop1 * 100).toFixed(1)}% (margin ${(s.probe.top1Margin * 100).toFixed(1)}p, majority ${(s.probe.majorityTop1 * 100).toFixed(1)}%)`);
     console.log(`  probe (a) features R² ${s.probe.featuresR2.toFixed(3)} vs control ${s.probe.controlFeaturesR2.toFixed(3)}; per feature ${s.probe.perFeatureR2.map((v) => v.toFixed(2)).join(' ')}`);
     if (lif?.selected) {

@@ -209,7 +209,7 @@ async function main() {
     const s = selected;
     console.log(`selected: rho ${s.rhoTarget} alpha ${s.alpha} b ${s.b} kLocal ${s.kLocal} kGlobal ${s.kGlobal} gap ${s.gap} (g = ${s.g.toFixed(5)})`);
     console.log(`  mean ${s.meanRateHz.toFixed(2)} Hz, median ${s.medianRateHz.toFixed(2)} Hz, active ${(s.activeFrac * 100).toFixed(1)}%, ceiling ${(s.ceilingFrac * 100).toFixed(2)}%, `
-      + `top1% share ${(s.topSpikeShare * 100).toFixed(1)}%, DN active ${s.dnEverActive}/107, separation ${s.separation.toFixed(3)}, rank ${s.rank}`);
+      + `top1% share ${(s.topSpikeShare * 100).toFixed(1)}%, DN active ${s.dnEverActive}/107, cosine separation ${s.cosineSeparation.toFixed(3)}, rank ${s.rank}`);
     console.log(`  probe (b) top-1 ${(s.probe.top1 * 100).toFixed(1)}% vs shuffle control ${(s.probe.controlTop1 * 100).toFixed(1)}% (margin ${(s.probe.top1Margin * 100).toFixed(1)}p, majority baseline ${(s.probe.majorityTop1 * 100).toFixed(1)}%)`);
     console.log(`  probe (a) features R² ${s.probe.featuresR2.toFixed(3)} vs control ${s.probe.controlFeaturesR2.toFixed(3)}; per feature ${s.probe.perFeatureR2.map((v) => v.toFixed(2)).join(' ')}`);
     console.log(`wrote ${path.relative(ROOT, OUT)}`);

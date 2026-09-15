@@ -44,8 +44,9 @@ function smokeLearned(connectome, spectral, results) {
   const [combo, r] = combos[0];
   const [readout, target] = combo.split(':');
   const { gap, g, ...params } = c0.params;
-  console.log(`using C0 learned readout ${combo} (test τ ${r.metrics.tau.toFixed(3)}, R² ${r.metrics.r2.toFixed(3)}) at rho ${params.rhoTarget} b ${params.b} kL ${params.kLocal} kG ${params.kGlobal}, gap ${gap}${results.config.quick ? ' [readout from a QUICK pipeline run]' : ''}`);
-  const f = createFeaturizer(connectome, params, spectral);
+  const op = results.config.operating ?? { T: 50 };
+  console.log(`using C0 learned readout ${combo} (test τ ${r.metrics.tau.toFixed(3)}, R² ${r.metrics.r2.toFixed(3)}) at alpha ${params.alpha} rho ${params.rhoTarget} b ${params.b} kL ${params.kLocal} kG ${params.kGlobal}, gap ${gap}, T ${op.T}, G_IN ${op.gIn ?? 'default'}${results.config.quick ? ' [readout from a QUICK pipeline run]' : ''}`);
+  const f = createFeaturizer(connectome, params, spectral, { T: op.T, gIn: op.gIn });
   const predict = readoutFromJSON(r.readout);
   const agent = createAgent(f.featurize, (x) => valueOf(target, predict(x), FEATURE_WEIGHTS));
   const rng = createRng(SEED);
