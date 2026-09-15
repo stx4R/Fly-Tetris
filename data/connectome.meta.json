@@ -1,0 +1,24 @@
+{
+  "dataset": "hemibrain:v1.2.1",
+  "extractedAt": "2026-09-15T00:57:20.598Z",
+  "nodeCount": 8000,
+  "edgeCount": 459168,
+  "layerSizes": {
+    "input": 2316,
+    "hidden": 5577,
+    "output": 107
+  },
+  "weightThreshold": 3,
+  "hiddenCandidateCount": 11769,
+  "truncated": true,
+  "droppedSelfLoops": 0,
+  "droppedDuplicateEdges": 0,
+  "outputAllowlisted": [
+    "Giant Fiber",
+    "MDN",
+    "oviDNa",
+    "oviDNb",
+    "vpoDN"
+  ],
+  "kcCount": 846
+}
