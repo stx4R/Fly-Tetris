@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// 캘리브레이션 선택점 + 랜덤 리드아웃으로 500조각 플레이. 크래시 없이 완주하고 전 배치가 합법인지
-// 확인하며 배치/초 처리량을 낸다 (gap 구간 포함). 게임오버가 나면 보드와 리저버를 리셋하고 새 에피소드로 이어간다.
-// 도달불가 DN (입력층에서 BFS 로 못 가는 출력 뉴런) 이 실제로 0회 발화하는지도 확인한다.
+// 500조각 스모크 플레이. data/results.json 에 C0 의 학습된 리드아웃이 있으면 afterstate 에이전트(4단계)로, 없으면
+// 캘리브레이션 선택점 + 랜덤 리드아웃(3단계)으로 돈다. 크래시 없이 완주하고 전 배치가 합법인지 확인하며 처리량을 낸다.
+// 게임오버가 나면 보드와 리저버를 리셋하고 새 에피소드로 이어간다. 도달불가 DN 이 0회 발화하는지도 확인한다.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -12,6 +12,10 @@ import { WINDOW, createReservoir } from '../src/reservoir.js';
 import { createDecoder } from '../src/decode.js';
 import { createRng } from '../src/prng.js';
 import { applyPlacement, createBag, emptyBoard, legalPlacements } from '../src/tetris.js';
+import { existsSync } from 'node:fs';
+import { createAgent, createFeaturizer } from '../src/play.js';
+import { readoutFromJSON, valueOf } from '../src/readout.js';
+import { FEATURE_WEIGHTS } from '../src/afterstate.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PIECES = 500;
@@ -33,9 +37,54 @@ function unreachableOutputs(connectome) {
   return connectome.neurons.map((n, i) => i).filter((i) => connectome.neurons[i].layer === 'output' && !seen[i]);
 }
 
+// 4단계: C0 학습 리드아웃으로 afterstate 플레이 (test τ 최대 조합)
+function smokeLearned(connectome, spectral, results) {
+  const c0 = results.conditions.C0;
+  const combos = Object.entries(c0.readouts).sort((a, b) => b[1].metrics.tau - a[1].metrics.tau);
+  const [combo, r] = combos[0];
+  const [readout, target] = combo.split(':');
+  const { gap, g, ...params } = c0.params;
+  console.log(`using C0 learned readout ${combo} (test τ ${r.metrics.tau.toFixed(3)}, R² ${r.metrics.r2.toFixed(3)}) at rho ${params.rhoTarget} b ${params.b} kL ${params.kLocal} kG ${params.kGlobal}, gap ${gap}${results.config.quick ? ' [readout from a QUICK pipeline run]' : ''}`);
+  const f = createFeaturizer(connectome, params, spectral);
+  const predict = readoutFromJSON(r.readout);
+  const agent = createAgent(f.featurize, (x) => valueOf(target, predict(x), FEATURE_WEIGHTS));
+  const rng = createRng(SEED);
+  const bag = createBag(rng);
+  const unreachable = unreachableOutputs(connectome);
+  let board = emptyBoard();
+  let episodes = 1, lines = 0, illegal = 0, placements = 0, candidates = 0;
+  const t0 = performance.now();
+  while (placements < PIECES) {
+    const piece = bag.next();
+    const legal = legalPlacements(board, piece);
+    if (legal.length === 0) { episodes++; board = emptyBoard(); continue; }
+    candidates += legal.length;
+    const mv = agent.choose(board, piece);
+    if (!legal.some((p) => p.col === mv.col && p.rot === mv.rot)) illegal++;
+    const res = applyPlacement(board, piece, mv.col, mv.rot);
+    if (res.gameOver) { episodes++; board = emptyBoard(); continue; }
+    board = res.board;
+    lines += res.linesCleared;
+    placements++;
+  }
+  const elapsed = (performance.now() - t0) / 1000;
+  const rate = placements / elapsed;
+  console.log(`
+${placements} placements in ${elapsed.toFixed(2)} s → ${rate.toFixed(1)} placements/s (${(candidates / placements).toFixed(1)} candidate windows per placement, ${(candidates / elapsed).toFixed(0)} windows/s)`);
+  console.log(`  episodes ${episodes} (mean length ${(placements / episodes).toFixed(1)} pieces), lines cleared ${lines}, illegal placements ${illegal}`);
+  console.log(`  unreachable DNs ${unreachable.length}: checked structurally (no input path) — afterstate agent uses the same reservoir as calibration`);
+  if (illegal > 0) { console.error('FAIL: illegal placements chosen'); process.exit(1); }
+  console.log('smoke run OK (afterstate agent)');
+}
+
 function main() {
   const connectome = parseConnectome(readFileSync(path.join(ROOT, 'data', 'connectome.json'), 'utf8'));
   const spectral = JSON.parse(readFileSync(path.join(ROOT, 'data', 'spectral.json'), 'utf8'));
+  const resultsFile = path.join(ROOT, 'data', 'results.json');
+  if (existsSync(resultsFile)) {
+    const results = JSON.parse(readFileSync(resultsFile, 'utf8'));
+    if (results.conditions?.C0?.readouts) { smokeLearned(connectome, spectral, results); return; }
+  }
   const calib = JSON.parse(readFileSync(path.join(ROOT, 'data', 'calibration.json'), 'utf8'));
   const point = calib.selected ?? calib.fallback;
   if (!point) throw new Error('calibration.json has neither selected nor fallback point');

@@ -3,8 +3,8 @@
 초파리 hemibrain 커넥톰의 실제 시냅스 연결을 고정 리저버로 쓰고, 리드아웃만 학습시켜 테트리스를
 플레이하는 시뮬레이터. 최종 산출물은 GitHub Pages 정적 웹 시각화 + 보고서.
 
-**현재 단계: 3단계 — 동역학 수리 (스펙트럼 재파라미터화·SFA·지역 억제·gap) + 캘리브레이션 v2 (프로브 기반)**
-(학습 루프·null model·ablation 은 4단계, 렌더링은 5단계)
+**현재 단계: 4단계 — afterstate 가치 학습 + null model 비교. 파이프라인 완성, 본 실험은 예산 추정(39 h > 8 h)에서 정지.**
+자세히는 `docs/stage4-status.md` (축 결정 + 결정 내 해상도 진단). 렌더링은 5단계.
 
 ## 사용
 
@@ -16,7 +16,10 @@ npm test           # node:test 단위 테스트
 npm run spectral   # W_unit 스펙트럼 반경 (alpha 0.5, 1.0) → data/spectral.json, 수렴 실패 시 exit 1
 npm run calibrate  # 시드 랜덤 탐색 → 상위 20점 재평가 → 프로브 선택 → 게이트. 게이트 미달/통과점 없음 시 exit 1 (워커 8개, ~6분)
 npm run calibrate-esn  # Plan B: 같은 CSR 위 ESN 을 같은 프로브·게이트로 (게이트 미달 시에만, ~16분)
-npm run smoke      # 선택점 + 랜덤 리드아웃으로 500조각 플레이, 처리량 ≥ 300 배치/s 확인
+npm run collect    # afterstate 30,000+ 수집 → data/afterstates.json (게임 단위 60/20/20 분할, 누수 검사)
+npm run estimate-budget  # 4단계 실험 소요 추정 (단위 비용·워커 처리량 실측), 8 h 초과 시 exit 1
+npm run experiment # 조건 × 리드아웃 × 목표 실험 → data/results.json (--games --cap --null-seeds --combos --quick)
+npm run smoke      # results.json 의 C0 학습 리드아웃으로 afterstate 플레이 500조각 (없으면 3단계 랜덤 리드아웃 경로)
 ```
 
 `data/raw/` 는 API raw 응답 캐시다. 재실행 시 API 를 다시 호출하지 않는다. 처음부터 다시 뽑으려면 지운다.
@@ -90,6 +93,16 @@ npm run smoke      # 선택점 + 랜덤 리드아웃으로 500조각 플레이, 
 - gap: 완전 리셋에서만 특징 R² 0.45–0.51, gap 0/25/50 은 0.13–0.15. 지속 어트랙터가 50 스텝 감쇠로는 안 사라진다.
 - smoke: 660 배치/s (reservoir 1.33 ms/배치, gap full), 불법 배치 0, 도달불가 DN 7개 발화 0.
 
+## 4단계 (afterstate + null model) — 구현 완료, 본 실행 대기
+
+- 정식화: 각 합법 배치의 결과 보드 → 리저버(후보마다 완전 리셋) → 가치 → argmax. 목표 V1(Dellacherie 점수) / V2(6특징 → 고정 가중치 결합).
+  리드아웃 R1 릿지 / R2 릿지+이차 / R3 MLP(직접 구현), 전 조건 동일. 조건 C0 real, C1 차수 보존 재배선, C2 가중치 순열, C3 층 블록 ER,
+  C4 KC 제거, C5 직접 간선 제거(1,531개), C6 활동량 요약 5개(교란 통제). C1–C3 시드 5개. 조건마다 ρ_unit 재계산·300점 재캘리브레이션.
+- 데이터: 40 게임 → 30,723 afterstate, 게임 단위 24/8/8 분할. 평가: 테스트 R²·결정 내 켄달 τ·top-1, 플레이 20 게임 × 2000 조각, 부트스트랩 95% CI.
+- `npm run estimate-budget`: 상한 39 h (플레이가 38 h) → 정지. 축소 시나리오와 결정 사항은 `docs/stage4-status.md`.
+- 파이프라인 점검(`--quick`)의 진단: alpha 1 의 ρ_unit 은 모든 조건에서 ≈ 1 (위상 불변), alpha 0.5 는 real 59 vs null 28–34 로 구분;
+  풀링 R² 0.7–0.8 이지만 결정 내 τ ≈ 0 — 같은 결정의 후보 34개가 DN 벡터 2–8개로 뭉친다 (중간층에서 4셀 차이가 전파되지 않음).
+
 ### 알려진 한계
 
 - **RF 배정은 임의적이다.** type 별 bodyId 순서로 격자에 균등 분산했을 뿐, 실제 LC 뉴런의 시야
@@ -102,6 +115,8 @@ npm run smoke      # 선택점 + 랜덤 리드아웃으로 500조각 플레이, 
 - **프로브 (b)(교사 행동 top-1) 는 선형으로는 원 입력에서도 +4.3p 가 한계**라 +10%p 게이트를 어떤 표현도 못 넘는다. 4단계 학습의
   성패 예측에는 특징 R² (프로브 (a)) 와 비선형 리드아웃이 필요하다.
 - k_local ∈ [0, 20] 은 스텝당 증분 규약에서 유효 범위(< 0.5)보다 약 50배 넓어 탐색 표본의 96% 가 침묵 영역에 떨어졌다.
+- **afterstate 후보들은 DN 발화 수로 구분되지 않는다.** 4셀 차이는 입력층 52 뉴런의 발화 수를 바꾸지만 중간층 0.6/5577, DN 0.9/107 에서만
+  차이가 남는다. 결정 내 순위 학습은 이 신호로는 불가능하다 (`docs/stage4-status.md` §3).
 
 ## 구조
 
@@ -110,13 +125,18 @@ scripts/extract-connectome.js   neuPrint 호출·캐시·출력 (I/O)
 scripts/validate-connectome.js  커넥톰 검증 (I/O)
 scripts/spectral.js             거듭제곱법 스펙트럼 반경 → data/spectral.json
 scripts/calibrate.js            시드 랜덤 탐색 + 재평가 + 게이트 → data/calibration.json
-scripts/smoke-run.js            500조각 스모크 플레이, 처리량
+scripts/collect.js              afterstate 수집 → data/afterstates.json
+scripts/estimate-budget.js      4단계 소요 추정
+scripts/experiment.js  experiment-worker.js  pool.js  experiment-config.js   4단계 실험 (조건별 캐시, 재개 가능)
+scripts/smoke-run.js            500조각 스모크 플레이 (학습 리드아웃 또는 랜덤 리드아웃)
 src/connectome.js               층 판정, 2-hop 후보, 절단, primary ROI, 스키마 파서, 그래프 검사
 src/tetris.js  src/heuristic.js 엔진, Dellacherie 교사
 src/spectral.js                 단위 CSR (alpha 정규화), 거듭제곱법
 src/reservoir.js                이벤트 구동 LIF + SFA + ROI 억제 풀 + gap
 src/encode.js  src/decode.js    보드 → 전류, DN 발화율 → 행동
 src/calibration.js src/metrics.js src/probe.js  보드·교사 라벨 생성, 지표, 릿지 프로브
+src/nullmodels.js               C1–C5 null model / ablation 그래프
+src/afterstate.js src/readout.js src/evaluate.js src/play.js   afterstate 데이터, 리드아웃 3종, 지표·CI, 에이전트
 src/prng.js                     xorshift128+
 test/                           node:test 단위 테스트
 ```
