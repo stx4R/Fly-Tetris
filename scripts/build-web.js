@@ -28,8 +28,8 @@ async function main() {
     bundle: true, minify: true, format: 'iife', target: ['es2020'], sourcemap: false,
     outfile: path.join(DIST, 'app.js'), logLevel: 'warning', metafile: true,
   });
-  cprf(path.join(WEB, 'index.html'), path.join(DIST, 'index.html'));
-  cprf(path.join(WEB, 'style.css'), path.join(DIST, 'style.css'));
+  for (const f of ['index.html', 'style.css', 'favicon.svg']) cprf(path.join(WEB, f), path.join(DIST, f));
+  cprf(path.join(ROOT, 'public', 'Profile.png'), path.join(DIST, 'avatar.png')); // 사이드바 프로필 (원본 public/Profile.png)
   cprf(path.join(WEB, 'data'), path.join(DIST, 'data'));
   cprf(path.join(ROOT, 'public', 'models'), path.join(DIST, 'models'));
   const FONT = path.join(ROOT, 'node_modules', 'pretendard', 'dist', 'web', 'variable');

@@ -49,7 +49,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .app { display: flex; min-height: 100vh; }
 .sidebar { width: var(--sidebar-w); flex: 0 0 var(--sidebar-w); position: sticky; top: 0; height: 100vh; background: var(--surface); border-right: 1px solid var(--line); padding: 24px 16px; display: flex; flex-direction: column; gap: 24px; }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; color: inherit; }
-.brand-mark { width: 36px; height: 36px; border-radius: var(--r-m); background: var(--brand-weak); display: grid; place-items: center; font-size: 17px; font-weight: 700; color: var(--brand); }
+.brand-mark { width: 36px; height: 36px; border-radius: var(--r-m); background: var(--brand-weak); display: grid; place-items: center; font-size: 20px; line-height: 1; }
 .brand-name { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2; }
 .brand-sub { font-size: 11px; font-weight: 500; color: var(--text-3); }
 .nav { display: flex; flex-direction: column; gap: 2px; }
@@ -62,7 +62,8 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .info-card span { font-size: 12px; font-weight: 500; color: var(--text-3); line-height: 1.4; }
 .source-row { height: 56px; border-radius: var(--r-l); padding: 0 12px; display: flex; align-items: center; gap: 10px; color: inherit; transition: background var(--dur-base) var(--ease); }
 .source-row:hover { background: var(--grey-100); color: inherit; }
-.source-avatar { width: 36px; height: 36px; border-radius: var(--r-l); background: var(--grey-200); display: grid; place-items: center; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.source-avatar { width: 36px; height: 36px; border-radius: var(--r-l); background: var(--grey-200); overflow: hidden; flex: 0 0 auto; }
+.source-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .source-row b { font-size: 14px; display: block; line-height: 1.2; }
 .source-row span { font-size: 12px; font-weight: 500; color: var(--text-3); }
 

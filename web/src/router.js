@@ -21,7 +21,7 @@ export function createRouter(routes, { onChange } = {}) {
     const page = document.getElementById(id);
     const route = page?.dataset.page;
     for (const a of navLinks) { if (a.dataset.route === route) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); }
-    document.title = `${page?.dataset.title ?? 'Fly'} — Fly · 초파리 커넥톰 리저버`;
+    document.title = 'Fly';
     return page;
   }
 
