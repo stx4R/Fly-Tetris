@@ -3,7 +3,7 @@
   "version": "0.6.0",
   "private": true,
   "type": "module",
-  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 6: web visualization + GitHub Pages.",
+  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 6: web console (Toss design system) + GitHub Pages.",
   "engines": {
     "node": ">=20"
   },
@@ -28,6 +28,7 @@
     "three": "^0.186.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2"
+    "esbuild": "^0.28.2",
+    "pretendard": "^1.3.9"
   }
 }

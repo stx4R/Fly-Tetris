@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "fly-web", "runtimeExecutable": "npm", "runtimeArgs": ["run", "serve"], "port": 8123 }
+  ]
+}

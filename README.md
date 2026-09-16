@@ -22,7 +22,7 @@ npm run estimate-budget  # 실험 소요 추정 (단위 비용·워커 처리량
 npm run experiment # 조건 × 리드아웃 × 목표 실험 → data/results.json (--games --cap --null-seeds --combos --quick)
 npm run smoke      # results.json 의 C0 학습 리드아웃으로 afterstate 플레이 500조각 (없으면 3단계 랜덤 리드아웃 경로)
 npm run build-viz  # 6단계 시각화 데이터 → web/data/ (서브샘플 그래프·한 게임 기록·요약)
-npm run build      # esbuild 번들 → web/dist (총 4.4 MB, 외부 요청 0)
+npm run build      # esbuild 번들 → web/dist (총 7.3 MB, 외부 요청 0 — Pretendard 는 node_modules 에서 복사)
 npm run serve      # 로컬 점검 http://localhost:8123
 npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 ```
@@ -100,11 +100,14 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 
 ## 6단계 — 웹 시각화 (`web/`, 배포 https://stx4r.github.io/Fly/)
 
-단일 페이지 4 섹션, 프레임워크 없음(three + esbuild 만). 모든 수치는 `web/data/*.json`(← `data/*.json`)에서 읽는다.
-S1 커넥톰 3D(층화 서브샘플 907 뉴런·5,963 시냅스, InstancedMesh + LineSegments, 반투명 뇌 껍질 GLB, ROI/KC 필터) ·
-S2 한 번의 결정(후보별 DN 히트맵 + 예측 순위 ↔ 실제 순위 bump chart, τ) · S3 스파이크 래스터·층별 추이·3D 점등 재생 ·
-S4 조건 비교(95% CI, C0 와 겹치면 회색 = 차이 없음, C1 동작 영역 없음 카드, ρ_unit 막대, 1부 분리도 구간). 모바일은 3D 노드·간선 축소, reduced-motion 존중,
-WebGL 없어도 S2·S4 동작. 이 사이트는 실패한 결과를 그대로 보여준다 — "학습했다/플레이한다" 는 표현을 쓰지 않는다.
+사이드바 콘솔 7화면(해시 라우터), 프레임워크 없음(three + esbuild 만). 디자인은 토스 디자인 시스템 토큰(블루 단일 강조 · 1px 헤어라인 · 라운드 ladder ·
+Pretendard 가변 폰트 self-host · 숫자 고정폭). 모든 수치는 `web/data/*.json`(← `data/*.json`)에서 읽는다.
+홈(핵심 수치 4개 · 조건별 τ/R²/줄 막대 · 결론) · 실험(summary 의 조건별 실행 13개 표 + 상세: 동작점·캘리브레이션·분리도·리드아웃 6종) ·
+커넥톰 3D(층화 서브샘플 907 뉴런·5,963 시냅스, InstancedMesh + LineSegments, 반투명 뇌 껍질 GLB, ROI/KC 필터, 스파이크 재생 점등) ·
+결정 탐색(한 번의 결정: 후보별 DN 히트맵 + 예측 순위 ↔ 실제 순위 bump chart, τ / 스파이크 활동: 래스터·층별 추이) ·
+조건 비교(95% CI, C0 와 겹치면 회색 = 차이 없음, C1 동작 영역 없음 카드, ρ_unit 막대, 1부 분리도 구간) · 설정(표시 옵션만, localStorage).
+모바일은 사이드바가 상단 바로 접히고 3D 노드·간선 축소, reduced-motion 존중, WebGL 없어도 나머지 화면 동작. 실험을 실행하는 기능은 없다(정적 사이트).
+이 사이트는 실패한 결과를 그대로 보여준다 — "학습했다/플레이한다" 는 표현을 쓰지 않는다.
 
 ## 5단계 결과 요약 (자세히는 `docs/stage5-separation.md`)
 
@@ -151,7 +154,7 @@ scripts/calibrate.js            시드 랜덤 탐색 + 재평가 + 게이트 →
 scripts/collect.js              afterstate 수집 → data/afterstates.json
 scripts/search-separation.js    5단계 1부 분리 동작점 탐색
 scripts/build-viz-data.js  build-web.js  serve-web.js  deploy-pages.js   6단계 시각화 데이터·번들·로컬 서버·Pages 배포
-web/index.html  web/style.css  web/src/{main,connectome,decision,spikes,compare,util}.js   정적 사이트 소스 (web/data, web/dist 는 생성물)
+web/index.html  web/style.css  web/src/{main,router,settings,home,experiments,connectome,decision,heatmap,spikes,compare,util}.js   정적 사이트 소스 (web/data, web/dist 는 생성물)
 scripts/estimate-budget.js      4단계 소요 추정
 scripts/experiment.js  experiment-worker.js  pool.js  experiment-config.js   4단계 실험 (조건별 캐시, 재개 가능)
 scripts/smoke-run.js            500조각 스모크 플레이 (학습 리드아웃 또는 랜덤 리드아웃)

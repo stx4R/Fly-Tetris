@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// 웹 빌드: web/src/main.js → web/dist/app.js (esbuild, three 포함), index.html·style.css·data/*.json·public/models/*.glb 복사.
+// 웹 빌드: web/src/main.js → web/dist/app.js (esbuild, three 포함), index.html·style.css·data/*.json·public/models/*.glb 복사,
+// Pretendard 가변 폰트(dynamic subset, node_modules/pretendard)를 dist/fonts 로 복사 (외부 요청 0 유지 — 필요한 유니코드 구간만 내려받는다).
 // 산출물 크기를 항목별로 찍고 총량이 25 MB 를 넘으면 exit 1. 외부 네트워크 요청은 없다 (모든 자산이 dist 안에 있다).
 
 import { build } from 'esbuild';
@@ -31,13 +32,21 @@ async function main() {
   cprf(path.join(WEB, 'style.css'), path.join(DIST, 'style.css'));
   cprf(path.join(WEB, 'data'), path.join(DIST, 'data'));
   cprf(path.join(ROOT, 'public', 'models'), path.join(DIST, 'models'));
+  const FONT = path.join(ROOT, 'node_modules', 'pretendard', 'dist', 'web', 'variable');
+  if (!existsSync(FONT)) { console.error('missing node_modules/pretendard — run `npm install`'); process.exit(1); }
+  mkdirSync(path.join(DIST, 'fonts'), { recursive: true });
+  copyFileSync(path.join(FONT, 'pretendardvariable-dynamic-subset.css'), path.join(DIST, 'fonts', 'pretendard.css'));
+  cprf(path.join(FONT, 'woff2-dynamic-subset'), path.join(DIST, 'fonts', 'woff2-dynamic-subset'));
   writeFileSync(path.join(DIST, '.nojekyll'), '');
   const sizes = [];
   const walk = (dir, rel = '') => { for (const f of readdirSync(dir)) { const p = path.join(dir, f); const r = path.posix.join(rel, f); if (statSync(p).isDirectory()) walk(p, r); else sizes.push([r, statSync(p).size]); } };
   walk(DIST);
   sizes.sort((a, b) => b[1] - a[1]);
   const total = sizes.reduce((s, [, b]) => s + b, 0);
-  for (const [f, b] of sizes) console.log(`${mb(b).padStart(9)}  ${f}`);
+  // 폰트 subset 92개는 한 줄로 묶어 찍는다
+  const fonts = sizes.filter(([f]) => f.startsWith('fonts/'));
+  const shown = sizes.filter(([f]) => !f.startsWith('fonts/')).concat([[`fonts/ (${fonts.length} files, dynamic subset)`, fonts.reduce((s, [, b]) => s + b, 0)]]).sort((a, b) => b[1] - a[1]);
+  for (const [f, b] of shown) console.log(`${mb(b).padStart(9)}  ${f}`);
   console.log(`${mb(total).padStart(9)}  TOTAL (limit ${mb(LIMIT)})`);
   const three = Object.entries(result.metafile.inputs).filter(([k]) => k.includes('node_modules/three')).reduce((s, [, v]) => s + v.bytes, 0);
   console.log(`app.js inputs: three ${mb(three)} (pre-minify), app ${mb(Object.entries(result.metafile.inputs).filter(([k]) => k.startsWith('web/')).reduce((s, [, v]) => s + v.bytes, 0))}`);

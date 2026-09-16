@@ -3,110 +3,323 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>VFB-Tetris — 초파리 커넥톰 리저버</title>
+<title>Fly — 초파리 커넥톰 리저버</title>
 <meta name="description" content="초파리 hemibrain 커넥톰 위상을 가진 고정 스파이킹 리저버 + 학습된 리드아웃으로 테트리스 배치를 평가한 결과. 결정 내 순위 정보가 없고 플레이는 무작위 수준이다.">
+<meta name="theme-color" content="#ffffff">
+<link rel="stylesheet" href="fonts/pretendard.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header class="hero">
-  <div class="hero-models" aria-hidden="true">
-    <canvas id="hero-canvas"></canvas>
-  </div>
-  <div class="hero-text">
-    <p class="kicker">VFB-Tetris · hemibrain v1.2.1</p>
-    <h1>초파리 커넥톰 위상을 가진 고정 리저버 + 학습된 리드아웃</h1>
-    <p class="lede">8,000 뉴런·459,168 시냅스의 실제 배선을 <b>고정</b> 스파이킹 리저버로 쓰고, 하강뉴런(DN) 107개의 발화 수만 읽어
-      테트리스 배치의 가치를 회귀했다. 결과: 후보마다 DN 패턴은 다르지만 그 차이는 배치의 좋고 나쁨과 정렬되지 않는다
-      (결정 내 켄달 τ <span data-num="c0.tau"></span>). 플레이는 전 조건이 무작위 수준이다 (줄 중앙값 <span data-num="c0.lines"></span>, 조각 <span data-num="c0.pieces"></span>).</p>
-    <nav class="toc">
-      <a href="#s1">1 커넥톰</a><a href="#s2">2 한 번의 결정</a><a href="#s3">3 스파이크 활동</a><a href="#s4">4 조건 비교</a>
-    </nav>
-  </div>
-</header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M16 16l4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 5h5v5M19 5l-8 8M9 6H6a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l10 6-10 6z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 6h3v12H8zM13 6h3v12h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-step" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z" fill="currentColor"/><path d="M17 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M7 6v12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 6l-8 6 8 6z" fill="currentColor"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  </defs>
+</svg>
 
-<main>
-<section id="s1" class="section">
-  <h2>1. 커넥톰 <span class="sub">서브샘플 <span data-num="graph.nodes"></span> 뉴런 · <span data-num="graph.edges"></span> 시냅스</span></h2>
-  <p class="caption">입력층 = 시각 투사 뉴런(LC/LPLC), 중간층 = 2-hop 이내 뉴런, 출력층 = 하강뉴런(DN). 실제 그래프(8,000 / 459,168)에서
-    입력 200·중간 600(ROI·KC 비율 보존)·출력 107 전부를 층화 표본으로 뽑았다. 좌표는 neuPrint soma 위치(없으면 같은 ROI 평균 + 지터).
-    반투명 껍질은 장식용 뇌 형상이며 뉴런 좌표계에 수동 보정 상수로 맞췄다.</p>
-  <div class="viz3d">
-    <div id="connectome-canvas" class="canvas-wrap"><div class="fallback" hidden id="connectome-fallback">3D 렌더를 열 수 없는 환경입니다 (WebGL). 아래 섹션은 3D 없이 동작합니다.</div></div>
-    <div class="controls" id="connectome-controls">
-      <div class="legend">
-        <span><i class="swatch input"></i>입력 (LC/LPLC)</span>
-        <span><i class="swatch hidden"></i>중간</span>
-        <span><i class="swatch kc"></i>중간 · KC</span>
-        <span><i class="swatch output"></i>출력 (DN)</span>
+<div class="app">
+<aside class="sidebar">
+  <a class="brand" href="#/" aria-label="Fly 홈">
+    <div class="brand-mark">F</div>
+    <div><div class="brand-name">Fly</div><div class="brand-sub">커넥톰 리저버</div></div>
+  </a>
+  <nav class="nav" aria-label="주 메뉴">
+    <a href="#/" data-route="home">홈</a>
+    <a href="#/experiments" data-route="experiments">실험</a>
+    <a href="#/connectome" data-route="connectome">커넥톰</a>
+    <a href="#/decision" data-route="decision">결정 탐색</a>
+    <a href="#/compare" data-route="compare">조건 비교</a>
+    <a href="#/settings" data-route="settings">설정</a>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="info-card"><b>hemibrain v1.2.1</b><span>8,000 뉴런 · 459,168 시냅스</span></div>
+    <a class="source-row" href="https://github.com/stx4R/Fly" target="_blank" rel="noopener">
+      <div class="source-avatar">Git</div>
+      <div><b>stx4R/Fly</b><span>코드 · 원자료 · 보고서</span></div>
+    </a>
+  </div>
+</aside>
+
+<main class="content">
+
+<!-- 홈 -->
+<section class="page" id="page-home" data-page="home" data-title="홈" hidden>
+  <header class="topbar">
+    <h1>홈</h1>
+    <div class="actions">
+      <a class="btn btn-secondary" href="https://github.com/stx4R/Fly#readme" target="_blank" rel="noopener">보고서 열기</a>
+      <a class="btn btn-primary" href="#/decision">결정 탐색</a>
+    </div>
+  </header>
+  <div class="page-body">
+    <div class="card pad-lg hero">
+      <div>
+        <div class="kicker">VFB-Tetris · hemibrain v1.2.1</div>
+        <h2>초파리 커넥톰 위상을 가진 고정 리저버 + 학습된 리드아웃</h2>
+        <p class="lede">8,000 뉴런·459,168 시냅스의 실제 배선을 <b>고정</b> 스파이킹 리저버로 쓰고, 하강뉴런(DN) 107개의 발화 수만 읽어
+          테트리스 배치의 가치를 회귀했어요. 후보마다 DN 패턴은 다르지만 그 차이는 배치의 좋고 나쁨과 정렬되지 않아요
+          (결정 내 켄달 τ <b class="num" data-num="c0.tau"></b>). 플레이는 전 조건이 무작위 수준이에요 (줄 중앙값 <b class="num" data-num="c0.lines"></b>, 조각 <b class="num" data-num="c0.pieces"></b>).</p>
       </div>
-      <label>ROI <select id="roi-filter"><option value="">전체</option></select></label>
-      <label><input type="checkbox" id="kc-toggle" checked> KC 표시</label>
-      <label><input type="checkbox" id="edge-toggle" checked> 시냅스 표시</label>
-      <label><input type="checkbox" id="shell-toggle" checked> 뇌 껍질</label>
-      <span class="hint" id="connectome-hint"></span>
+      <div class="hero-models" aria-hidden="true"><canvas id="hero-canvas"></canvas></div>
     </div>
-  </div>
-</section>
-
-<section id="s2" class="section">
-  <h2>2. 한 번의 결정 <span class="sub">후보 afterstate → 리저버 → DN 발화 수 → 가치</span></h2>
-  <p class="caption"><b>후보마다 DN 패턴은 다르지만, 그 차이가 배치의 좋고 나쁨과 정렬되지 않는다.</b>
-    한 결정에서 합법 배치 각각의 결과 보드를 리저버(후보마다 완전 리셋, <span data-num="op.T"></span> ms)에 넣어 DN 107개의 발화 수를 얻고,
-    학습된 MLP 리드아웃(R3, 목표 V2)이 가치를 매긴다. 오른쪽 두 순위(리저버 예측 / 실제 Dellacherie 점수)를 잇는 선이 뒤엉키는 것이
-    테스트 분할 켄달 τ <span data-num="c0.tau"></span> [<span data-num="c0.tauCI"></span>] 의 모습이다.</p>
-  <div class="decision">
-    <div class="col board-col">
-      <div class="row-controls">
-        <button id="dec-prev" aria-label="이전 결정">◀</button>
-        <span id="dec-label"></span>
-        <button id="dec-next" aria-label="다음 결정">▶</button>
+    <div class="kpis" id="home-kpis"></div>
+    <div class="home-grid">
+      <div class="card pad-lg">
+        <div class="card-head">
+          <div class="grow"><div class="card-title">조건별 <span id="home-metric-name">결정 내 τ</span></div><div class="card-sub">C0과 신뢰구간이 겹치는 조건은 회색이에요 · 시드가 여럿이면 평균</div></div>
+          <div class="right seg sm" role="tablist" id="home-metric">
+            <button role="tab" aria-selected="true" data-metric="tau">τ</button>
+            <button role="tab" aria-selected="false" data-metric="r2">R²</button>
+            <button role="tab" aria-selected="false" data-metric="lines">줄</button>
+          </div>
+        </div>
+        <div class="bars" id="home-bars"></div>
       </div>
-      <canvas id="board-canvas" width="200" height="400" aria-label="보드"></canvas>
-      <div id="board-info" class="small"></div>
-      <div id="candidate-strip" class="candidate-strip" role="listbox" aria-label="후보 배치"></div>
+      <div class="card" style="padding:24px 8px 12px">
+        <div class="card-head" style="padding:0 16px 4px">
+          <div class="card-title">실험 조건</div>
+          <a class="link right" href="#/experiments">전체보기</a>
+        </div>
+        <div class="list" id="home-recent"></div>
+      </div>
     </div>
-    <div class="col heat-col">
-      <h3>선택 후보의 DN 발화 수 <span class="small" id="heat-title"></span></h3>
-      <div id="dn-heatmap" class="heatmap"></div>
-      <div id="heat-info" class="small"></div>
+    <div class="card notice" id="home-conclusion"></div>
+  </div>
+</section>
+
+<!-- 실험 목록 -->
+<section class="page" id="page-experiments" data-page="experiments" data-title="실험" hidden>
+  <header class="topbar">
+    <h1>실험</h1>
+    <div class="actions">
+      <label class="field sm" style="width:320px"><svg><use href="#i-search"/></svg><input id="exp-search" type="search" placeholder="조건, 이름, 시드로 찾아요" aria-label="실험 검색"></label>
+      <label class="field sm" style="width:150px"><select id="exp-sort" aria-label="정렬"><option value="order">조건순</option><option value="tau">τ 높은순</option><option value="r2">R² 높은순</option></select></label>
     </div>
-    <div class="col rank-col">
-      <h3>순위 비교 <span class="small">A 리저버 예측 · B 실제 Dellacherie</span></h3>
-      <svg id="bump" class="bump" role="img" aria-label="예측 순위와 실제 순위를 잇는 선"></svg>
-      <div id="rank-info" class="small"></div>
+  </header>
+  <div class="page-body">
+    <div class="chips" id="exp-chips"></div>
+    <div class="card table-wrap" style="padding:8px 8px 12px">
+      <div class="table" id="exp-table"></div>
+    </div>
+    <p class="foot">조건 C1–C3는 시드 3개씩 따로 실행했어요. 리드아웃은 전 조건 R3:V2(MLP · 6특징 결합 목표), 재캘리브레이션은 조건마다 300점이에요. 수치는 <code>summary.json</code>에서 읽어요.</p>
+  </div>
+</section>
+
+<!-- 실험 상세 -->
+<section class="page" id="page-experiment" data-page="experiments" data-title="실험 상세" hidden>
+  <header class="topbar">
+    <a class="btn btn-icon plain" href="#/experiments" aria-label="실험 목록으로"><svg width="24" height="24"><use href="#i-back"/></svg></a>
+    <h1 id="exp-title"></h1>
+    <span id="exp-status"></span>
+    <span class="sub num" id="exp-params"></span>
+    <div class="actions" id="exp-actions"></div>
+  </header>
+  <div class="page-body" id="exp-body"></div>
+</section>
+
+<!-- 커넥톰 -->
+<section class="page" id="page-connectome" data-page="connectome" data-title="커넥톰" hidden>
+  <header class="topbar">
+    <h1>커넥톰</h1>
+    <span class="sub num">서브샘플 <span data-num="graph.nodes"></span> 뉴런 · <span data-num="graph.edges"></span> 시냅스 · 층화 표본</span>
+    <div class="actions"><a class="btn btn-secondary" href="https://neuprint.janelia.org" target="_blank" rel="noopener">neuPrint <svg><use href="#i-ext"/></svg></a></div>
+  </header>
+  <div class="page-body">
+    <div class="connectome-grid">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">3D 커넥톰</div>
+          <div class="card-sub num" style="margin-top:6px"><span data-num="graph.nodes"></span> 뉴런 · <span data-num="graph.edges"></span> 시냅스</div>
+          <div class="right" id="connectome-hint"></div>
+        </div>
+        <div class="viewport" id="connectome-canvas"><div class="fallback" hidden id="connectome-fallback">3D 뷰를 열 수 없는 환경이에요 (WebGL). 다른 화면은 3D 없이 동작해요.</div></div>
+        <div class="legend">
+          <span><i class="swatch input"></i>입력 LC/LPLC <b class="num" data-num="graph.input"></b></span>
+          <span><i class="swatch hidden"></i>중간 <b class="num" data-num="graph.hidden"></b></span>
+          <span><i class="swatch kc"></i>중간 · KC <b class="num" data-num="graph.kcPct"></b></span>
+          <span><i class="swatch output"></i>출력 DN <b class="num" data-num="graph.output"></b></span>
+        </div>
+        <div class="play-row" id="connectome-play">
+          <span class="label">스파이크 재생</span>
+          <button class="btn btn-secondary btn-sm" data-sp="play"><svg><use href="#i-play"/></svg>재생</button>
+          <button class="btn btn-secondary btn-sm" data-sp="step"><svg><use href="#i-step"/></svg>스텝 +1</button>
+          <button class="btn btn-secondary btn-sm" data-sp="reset"><svg><use href="#i-reset"/></svg>처음</button>
+          <span class="small num" data-sp="label"></span>
+        </div>
+        <p class="card-note">입력층 = 시각 투사 뉴런(LC/LPLC), 중간층 = 2-hop 이내 뉴런, 출력층 = 하강뉴런(DN). 실제 그래프(8,000 / 459,168)에서
+          입력 200·중간 600(ROI·KC 비율 보존)·출력 107 전부를 층화 표본으로 뽑았어요. 좌표는 neuPrint soma 위치(없으면 같은 ROI 평균 + 지터).
+          반투명 껍질은 장식용 뇌 형상이라 뉴런 좌표계에 수동 보정 상수로 맞췄어요. 재생하면 결정 탐색에서 고른 결정의 스텝별 발화 뉴런이 점등돼요.</p>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:16px; min-width:0">
+        <div class="card" id="connectome-controls">
+          <div class="card-title">보기 설정</div>
+          <div style="display:flex; flex-direction:column; gap:8px">
+            <span class="label">ROI</span>
+            <label class="field"><select id="roi-filter" aria-label="ROI 필터"><option value="">전체</option></select></label>
+          </div>
+          <div class="row"><span class="title">KC 표시</span><label class="switch" style="margin-left:auto"><input type="checkbox" id="kc-toggle" checked><i></i></label></div>
+          <div class="divider"></div>
+          <div class="row"><span class="title">시냅스 표시</span><label class="switch" style="margin-left:auto"><input type="checkbox" id="edge-toggle" checked><i></i></label></div>
+          <div class="divider"></div>
+          <div class="row"><span class="title">뇌 껍질</span><label class="switch" style="margin-left:auto"><input type="checkbox" id="shell-toggle" checked><i></i></label></div>
+        </div>
+        <div class="card">
+          <div><div class="card-title">선택 후보의 DN 발화 수</div><div class="card-sub num" id="heat2-title">결정 내 최대값으로 정규화 · 107개</div></div>
+          <div class="heatmap" id="dn-heatmap-2" aria-label="DN 발화 수 히트맵"></div>
+          <div class="heat-scale"><span>0</span><i></i><span id="heat2-max">—</span></div>
+          <p class="card-note num" id="heat2-info"></p>
+        </div>
+      </div>
+    </div>
+    <div class="card notice">
+      <div class="grow">
+        <div class="title">후보마다 DN 패턴은 다르지만, 그 차이가 배치의 좋고 나쁨과 정렬되지 않아요</div>
+        <div class="sub num">테스트 분할 켄달 τ <span data-num="c0.tau"></span> [<span data-num="c0.tauCI"></span>] · 결정 <span data-num="c0.decisions"></span>개</div>
+      </div>
+      <a class="link" href="#/decision">순위 비교 보기 <svg><use href="#i-chev"/></svg></a>
     </div>
   </div>
 </section>
 
-<section id="s3" class="section">
-  <h2>3. 스파이크 활동 <span class="sub">선택 후보에 대한 <span data-num="op.T"></span> 스텝 (1 ms)</span></h2>
-  <p class="caption">선택된 후보의 결과 보드를 넣었을 때 표본 뉴런의 발화 래스터(층별 정렬)와 전 뉴런의 층별 발화 수 추이.
-    재생하면 1의 3D 뷰에서 그 스텝에 발화한 뉴런이 점등된다.</p>
-  <div class="row-controls">
-    <button id="sp-play">▶ 재생</button><button id="sp-step">스텝 +1</button><button id="sp-reset">처음</button>
-    <span id="sp-label" class="small"></span>
-  </div>
-  <div class="spikes">
-    <canvas id="raster" class="raster" aria-label="스파이크 래스터"></canvas>
-    <svg id="layer-chart" class="layer-chart" role="img" aria-label="층별 발화 수 추이"></svg>
+<!-- 결정 탐색 -->
+<section class="page" id="page-decision" data-page="decision" data-title="결정 탐색" hidden>
+  <header class="topbar">
+    <h1>결정 탐색</h1>
+    <span class="sub">후보 afterstate → 리저버 → DN 발화 수 → 가치</span>
+    <div class="actions">
+      <div class="seg" role="tablist" id="decision-tabs">
+        <button role="tab" aria-selected="true" data-tab="decision">한 번의 결정</button>
+        <button role="tab" aria-selected="false" data-tab="spikes">스파이크 활동</button>
+      </div>
+    </div>
+  </header>
+  <div class="page-body">
+    <div id="tab-decision">
+      <div class="card notice" style="margin-bottom:16px">
+        <div class="grow">
+          <div class="title">후보마다 DN 패턴은 다르지만, 그 차이가 배치의 좋고 나쁨과 정렬되지 않아요</div>
+          <div class="sub">한 결정에서 합법 배치 각각의 결과 보드를 리저버(후보마다 완전 리셋, <span class="num" data-num="op.T"></span> ms)에 넣어 DN 107개의 발화 수를 얻고,
+            학습된 MLP 리드아웃(R3, 목표 V2)이 가치를 매겨요. 오른쪽 두 순위(리저버 예측 / 실제 Dellacherie 점수)를 잇는 선이 뒤엉키는 것이
+            테스트 분할 켄달 τ <span class="num" data-num="c0.tau"></span> [<span class="num" data-num="c0.tauCI"></span>]의 모습이에요.</div>
+        </div>
+      </div>
+      <div class="decision">
+        <div class="card">
+          <div class="row-controls">
+            <button class="btn btn-icon" id="dec-prev" aria-label="이전 결정"><svg width="20" height="20"><use href="#i-prev"/></svg></button>
+            <span class="small num" id="dec-label" style="text-align:center"></span>
+            <button class="btn btn-icon" id="dec-next" aria-label="다음 결정"><svg width="20" height="20"><use href="#i-next"/></svg></button>
+          </div>
+          <canvas id="board-canvas" width="200" height="400" aria-label="보드"></canvas>
+          <div id="board-info" class="board-info num"></div>
+          <div><span class="label">후보 배치</span><div class="card-sub" style="margin:2px 0 8px">파랑 테두리 = 보는 중 · 초록 = 리저버가 고른 배치</div>
+            <div id="candidate-strip" class="candidate-strip" role="listbox" aria-label="후보 배치"></div></div>
+        </div>
+        <div class="card">
+          <div><div class="card-title">선택 후보의 DN 발화 수</div><div class="card-sub num" id="heat-title"></div></div>
+          <div id="dn-heatmap" class="heatmap"></div>
+          <div class="heat-scale"><span>0</span><i></i><span id="heat-max">—</span></div>
+          <p class="card-note num" id="heat-info"></p>
+        </div>
+        <div class="card">
+          <div><div class="card-title">순위 비교</div><div class="card-sub">A 리저버 예측 순위 ↔ B 실제 Dellacherie 순위</div></div>
+          <svg id="bump" class="bump" role="img" aria-label="예측 순위와 실제 순위를 잇는 선"></svg>
+          <p class="card-note num" id="rank-info"></p>
+        </div>
+      </div>
+    </div>
+    <div id="tab-spikes" hidden>
+      <div class="card notice" style="margin-bottom:16px">
+        <div class="grow">
+          <div class="title">선택 후보에 대한 <span class="num" data-num="op.T"></span> 스텝 (1 ms)의 발화</div>
+          <div class="sub">선택된 후보의 결과 보드를 넣었을 때 표본 뉴런의 발화 래스터(층별 정렬)와 전 뉴런의 층별 발화 수 추이예요.
+            스파이크 기록은 리저버가 실제로 고른 후보에만 있어요. 재생하면 커넥톰 화면의 3D 뷰에서 그 스텝에 발화한 뉴런이 점등돼요.</div>
+        </div>
+        <a class="link" href="#/connectome">3D에서 보기 <svg><use href="#i-chev"/></svg></a>
+      </div>
+      <div class="play-row" id="spikes-play" style="margin-bottom:16px">
+        <button class="btn btn-primary" data-sp="play"><svg><use href="#i-play"/></svg>재생</button>
+        <button class="btn btn-secondary" data-sp="step"><svg><use href="#i-step"/></svg>스텝 +1</button>
+        <button class="btn btn-secondary" data-sp="reset"><svg><use href="#i-reset"/></svg>처음</button>
+        <span class="small num" data-sp="label"></span>
+      </div>
+      <div class="spikes">
+        <div class="card"><div class="card-title">스파이크 래스터 <span class="card-sub" style="display:inline">표본 <span class="num" data-num="graph.nodes"></span>행 · 층별 정렬</span></div>
+          <canvas id="raster" class="raster" aria-label="스파이크 래스터"></canvas></div>
+        <div class="card"><div class="card-title">층별 발화 수 <span class="card-sub" style="display:inline">전 뉴런</span></div>
+          <svg id="layer-chart" class="layer-chart" role="img" aria-label="층별 발화 수 추이"></svg></div>
+      </div>
+    </div>
   </div>
 </section>
 
-<section id="s4" class="section">
-  <h2>4. 조건 비교 <span class="sub">실제 배선 vs null model · ablation</span></h2>
-  <p class="caption">같은 리드아웃(R3:V2)·같은 재캘리브레이션 절차를 7개 조건에 적용했다. 막대는 점추정, 선은 부트스트랩 95% 신뢰구간.
-    C0(real)와 신뢰구간이 겹치는 조건은 <b>회색</b>으로 그렸다 — 그 쌍은 "차이 없음"이다. C1·C2·C3는 시드 3개.</p>
-  <div id="compare-charts" class="charts"></div>
-  <div id="c1-card" class="card"></div>
-  <div id="rho-chart" class="charts"></div>
-  <div id="search-chart" class="charts"></div>
-  <p class="caption small" id="compare-foot"></p>
+<!-- 조건 비교 -->
+<section class="page" id="page-compare" data-page="compare" data-title="조건 비교" hidden>
+  <header class="topbar">
+    <h1>조건 비교</h1>
+    <span class="sub">실제 배선 vs null model · ablation</span>
+  </header>
+  <div class="page-body">
+    <div class="card notice">
+      <div class="grow">
+        <div class="title">같은 리드아웃(R3:V2)·같은 재캘리브레이션 절차를 7개 조건에 적용했어요</div>
+        <div class="sub">점은 점추정, 선은 부트스트랩 95% 신뢰구간이에요. C0(real)과 신뢰구간이 겹치는 조건은 <b>회색</b>으로 그려요 — 그 쌍은 "차이 없음"이에요. C1·C2·C3는 시드 3개.</div>
+      </div>
+    </div>
+    <div id="compare-charts" class="charts"></div>
+    <div id="compare-extra" class="charts"></div>
+    <p class="foot num" id="compare-foot"></p>
+  </div>
 </section>
+
+<!-- 설정 -->
+<section class="page" id="page-settings" data-page="settings" data-title="설정" hidden>
+  <header class="topbar"><h1>설정</h1></header>
+  <div class="page-body narrow">
+    <div class="card settings-card">
+      <div class="section">표시</div>
+      <div class="row lg"><div class="grow"><div class="title">3D 뷰 자동 회전</div><div class="desc">모션을 줄이는 시스템 설정이면 자동으로 꺼져요</div></div><label class="switch"><input type="checkbox" data-setting="autoRotate"><i></i></label></div>
+      <div class="divider"></div>
+      <div class="row lg"><div class="grow"><div class="title">3D 뷰 어두운 배경</div><div class="desc">스파이크 점등을 어두운 배경에서 봐요</div></div><label class="switch"><input type="checkbox" data-setting="darkViz"><i></i></label></div>
+      <div class="divider"></div>
+      <div class="row lg"><div class="grow"><div class="title">신뢰구간 겹침 회색 처리</div><div class="desc">C0과 차이 없는 조건을 회색으로 그려요</div></div><label class="switch"><input type="checkbox" data-setting="grayOverlap"><i></i></label></div>
+      <div class="divider"></div>
+      <div class="row lg"><div class="grow"><div class="title">숫자 고정폭 표기</div><div class="desc">본문 숫자에도 tabular figure를 써요 (표와 수치는 항상 고정폭)</div></div><label class="switch"><input type="checkbox" data-setting="tabular"><i></i></label></div>
+    </div>
+    <div class="card settings-card">
+      <div class="section">데이터</div>
+      <a class="row lg" href="https://neuprint.janelia.org" target="_blank" rel="noopener"><span class="title">커넥톰 버전</span><span class="val">hemibrain v1.2.1 <svg class="chev"><use href="#i-chev"/></svg></span></a>
+      <div class="divider"></div>
+      <a class="row lg" href="https://github.com/stx4R/Fly/blob/main/docs/stage6-web.md" target="_blank" rel="noopener"><span class="title">서브샘플 크기</span><span class="val"><span data-num="graph.nodes"></span> 뉴런 · <span data-num="graph.edges"></span> 시냅스 <svg class="chev"><use href="#i-chev"/></svg></span></a>
+      <div class="divider"></div>
+      <a class="row lg" href="https://github.com/stx4R/Fly/tree/main/web/data" target="_blank" rel="noopener"><span class="title">결과 파일 위치</span><span class="val">web/data/*.json <svg class="chev"><use href="#i-chev"/></svg></span></a>
+      <div class="divider"></div>
+      <div class="row lg"><span class="title">생성 시각</span><span class="val" id="settings-generated">—</span></div>
+    </div>
+    <div class="card settings-card">
+      <div class="section">소스</div>
+      <a class="row lg" href="https://github.com/stx4R/Fly" target="_blank" rel="noopener"><span class="title">GitHub 저장소</span><span class="val">stx4R/Fly <svg class="chev"><use href="#i-chev"/></svg></span></a>
+      <div class="divider"></div>
+      <a class="row lg" href="https://stx4r.github.io/Fly/" target="_blank" rel="noopener"><span class="title">배포 주소</span><span class="val">stx4r.github.io/Fly <svg class="chev"><use href="#i-chev"/></svg></span></a>
+      <div class="divider" style="margin-bottom:16px"></div>
+      <div style="display:flex; flex-direction:column; gap:10px; padding-bottom:8px">
+        <div class="desc small">표시 설정은 이 브라우저에만 저장돼요. 초기화하면 기본값으로 돌아가요.</div>
+        <button class="btn btn-secondary" style="align-self:flex-start" id="settings-reset">표시 설정 초기화</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 </main>
-
-<footer>
-  <p>데이터: neuPrint hemibrain v1.2.1 · 코드와 원자료: <a href="https://github.com/stx4R/Fly">github.com/stx4R/Fly</a> · 모든 수치는 <code>data/*.json</code>에서 읽는다.</p>
-</footer>
+</div>
 <script src="app.js"></script>
 </body>
 </html>
