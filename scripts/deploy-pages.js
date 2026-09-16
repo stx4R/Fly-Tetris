@@ -4,7 +4,7 @@
 // 사전: npm run build-viz && npm run build. 옵션: --no-push (브랜치만 갱신).
 
 import { execSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,7 +17,7 @@ function main() {
   if (!existsSync(path.join(DIST, 'index.html'))) { console.error('web/dist/index.html missing — run `npm run build` first'); process.exit(1); }
   const head = sh('git rev-parse --short HEAD');
   const indexFile = path.join(ROOT, '.git', 'gh-pages-index');
-  if (existsSync(indexFile)) rmSync(indexFile);
+  if (existsSync(indexFile)) unlinkSync(indexFile); // rmSync 는 일부 실행 샌드박스에서 exit 127 (build-web.js 와 같은 우회)
   const env = { GIT_INDEX_FILE: indexFile };
   sh(`git --work-tree="${DIST}" add -A -f .`, env);
   const tree = sh('git write-tree', env);
@@ -25,7 +25,7 @@ function main() {
   try { parent = sh(`git rev-parse --verify refs/heads/${BRANCH}`); } catch { /* 첫 배포 */ }
   const commit = sh(`git commit-tree ${tree} ${parent ? `-p ${parent}` : ''} -m "pages: build from ${head}"`);
   sh(`git update-ref refs/heads/${BRANCH} ${commit}`);
-  rmSync(indexFile);
+  unlinkSync(indexFile);
   console.log(`${BRANCH} ← ${commit.slice(0, 7)} (tree ${tree.slice(0, 7)}, from main ${head}${parent ? `, parent ${parent.slice(0, 7)}` : ', orphan'})`);
   if (process.argv.includes('--no-push')) return;
   console.log(sh(`git push -f origin ${BRANCH}:${BRANCH}`) || 'pushed');
