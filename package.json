@@ -1,9 +1,9 @@
 {
   "name": "vfb-tetris",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
-  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 5: separation search + main experiment.",
+  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 6: web visualization + GitHub Pages.",
   "engines": {
     "node": ">=20"
   },
@@ -18,6 +18,16 @@
     "search-separation": "node scripts/search-separation.js",
     "estimate-budget": "node scripts/estimate-budget.js",
     "experiment": "node scripts/experiment.js",
-    "smoke": "node scripts/smoke-run.js"
+    "smoke": "node scripts/smoke-run.js",
+    "build-viz": "node scripts/build-viz-data.js",
+    "build": "node scripts/build-web.js",
+    "serve": "node scripts/serve-web.js",
+    "deploy": "node scripts/deploy-pages.js"
+  },
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
   }
 }

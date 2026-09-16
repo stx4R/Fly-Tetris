@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VFB-Tetris — 초파리 커넥톰 리저버</title>
+<meta name="description" content="초파리 hemibrain 커넥톰 위상을 가진 고정 스파이킹 리저버 + 학습된 리드아웃으로 테트리스 배치를 평가한 결과. 결정 내 순위 정보가 없고 플레이는 무작위 수준이다.">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="hero-models" aria-hidden="true">
+    <canvas id="hero-canvas"></canvas>
+  </div>
+  <div class="hero-text">
+    <p class="kicker">VFB-Tetris · hemibrain v1.2.1</p>
+    <h1>초파리 커넥톰 위상을 가진 고정 리저버 + 학습된 리드아웃</h1>
+    <p class="lede">8,000 뉴런·459,168 시냅스의 실제 배선을 <b>고정</b> 스파이킹 리저버로 쓰고, 하강뉴런(DN) 107개의 발화 수만 읽어
+      테트리스 배치의 가치를 회귀했다. 결과: 후보마다 DN 패턴은 다르지만 그 차이는 배치의 좋고 나쁨과 정렬되지 않는다
+      (결정 내 켄달 τ <span data-num="c0.tau"></span>). 플레이는 전 조건이 무작위 수준이다 (줄 중앙값 <span data-num="c0.lines"></span>, 조각 <span data-num="c0.pieces"></span>).</p>
+    <nav class="toc">
+      <a href="#s1">1 커넥톰</a><a href="#s2">2 한 번의 결정</a><a href="#s3">3 스파이크 활동</a><a href="#s4">4 조건 비교</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+<section id="s1" class="section">
+  <h2>1. 커넥톰 <span class="sub">서브샘플 <span data-num="graph.nodes"></span> 뉴런 · <span data-num="graph.edges"></span> 시냅스</span></h2>
+  <p class="caption">입력층 = 시각 투사 뉴런(LC/LPLC), 중간층 = 2-hop 이내 뉴런, 출력층 = 하강뉴런(DN). 실제 그래프(8,000 / 459,168)에서
+    입력 200·중간 600(ROI·KC 비율 보존)·출력 107 전부를 층화 표본으로 뽑았다. 좌표는 neuPrint soma 위치(없으면 같은 ROI 평균 + 지터).
+    반투명 껍질은 장식용 뇌 형상이며 뉴런 좌표계에 수동 보정 상수로 맞췄다.</p>
+  <div class="viz3d">
+    <div id="connectome-canvas" class="canvas-wrap"><div class="fallback" hidden id="connectome-fallback">3D 렌더를 열 수 없는 환경입니다 (WebGL). 아래 섹션은 3D 없이 동작합니다.</div></div>
+    <div class="controls" id="connectome-controls">
+      <div class="legend">
+        <span><i class="swatch input"></i>입력 (LC/LPLC)</span>
+        <span><i class="swatch hidden"></i>중간</span>
+        <span><i class="swatch kc"></i>중간 · KC</span>
+        <span><i class="swatch output"></i>출력 (DN)</span>
+      </div>
+      <label>ROI <select id="roi-filter"><option value="">전체</option></select></label>
+      <label><input type="checkbox" id="kc-toggle" checked> KC 표시</label>
+      <label><input type="checkbox" id="edge-toggle" checked> 시냅스 표시</label>
+      <label><input type="checkbox" id="shell-toggle" checked> 뇌 껍질</label>
+      <span class="hint" id="connectome-hint"></span>
+    </div>
+  </div>
+</section>
+
+<section id="s2" class="section">
+  <h2>2. 한 번의 결정 <span class="sub">후보 afterstate → 리저버 → DN 발화 수 → 가치</span></h2>
+  <p class="caption"><b>후보마다 DN 패턴은 다르지만, 그 차이가 배치의 좋고 나쁨과 정렬되지 않는다.</b>
+    한 결정에서 합법 배치 각각의 결과 보드를 리저버(후보마다 완전 리셋, <span data-num="op.T"></span> ms)에 넣어 DN 107개의 발화 수를 얻고,
+    학습된 MLP 리드아웃(R3, 목표 V2)이 가치를 매긴다. 오른쪽 두 순위(리저버 예측 / 실제 Dellacherie 점수)를 잇는 선이 뒤엉키는 것이
+    테스트 분할 켄달 τ <span data-num="c0.tau"></span> [<span data-num="c0.tauCI"></span>] 의 모습이다.</p>
+  <div class="decision">
+    <div class="col board-col">
+      <div class="row-controls">
+        <button id="dec-prev" aria-label="이전 결정">◀</button>
+        <span id="dec-label"></span>
+        <button id="dec-next" aria-label="다음 결정">▶</button>
+      </div>
+      <canvas id="board-canvas" width="200" height="400" aria-label="보드"></canvas>
+      <div id="board-info" class="small"></div>
+      <div id="candidate-strip" class="candidate-strip" role="listbox" aria-label="후보 배치"></div>
+    </div>
+    <div class="col heat-col">
+      <h3>선택 후보의 DN 발화 수 <span class="small" id="heat-title"></span></h3>
+      <div id="dn-heatmap" class="heatmap"></div>
+      <div id="heat-info" class="small"></div>
+    </div>
+    <div class="col rank-col">
+      <h3>순위 비교 <span class="small">A 리저버 예측 · B 실제 Dellacherie</span></h3>
+      <svg id="bump" class="bump" role="img" aria-label="예측 순위와 실제 순위를 잇는 선"></svg>
+      <div id="rank-info" class="small"></div>
+    </div>
+  </div>
+</section>
+
+<section id="s3" class="section">
+  <h2>3. 스파이크 활동 <span class="sub">선택 후보에 대한 <span data-num="op.T"></span> 스텝 (1 ms)</span></h2>
+  <p class="caption">선택된 후보의 결과 보드를 넣었을 때 표본 뉴런의 발화 래스터(층별 정렬)와 전 뉴런의 층별 발화 수 추이.
+    재생하면 1의 3D 뷰에서 그 스텝에 발화한 뉴런이 점등된다.</p>
+  <div class="row-controls">
+    <button id="sp-play">▶ 재생</button><button id="sp-step">스텝 +1</button><button id="sp-reset">처음</button>
+    <span id="sp-label" class="small"></span>
+  </div>
+  <div class="spikes">
+    <canvas id="raster" class="raster" aria-label="스파이크 래스터"></canvas>
+    <svg id="layer-chart" class="layer-chart" role="img" aria-label="층별 발화 수 추이"></svg>
+  </div>
+</section>
+
+<section id="s4" class="section">
+  <h2>4. 조건 비교 <span class="sub">실제 배선 vs null model · ablation</span></h2>
+  <p class="caption">같은 리드아웃(R3:V2)·같은 재캘리브레이션 절차를 7개 조건에 적용했다. 막대는 점추정, 선은 부트스트랩 95% 신뢰구간.
+    C0(real)와 신뢰구간이 겹치는 조건은 <b>회색</b>으로 그렸다 — 그 쌍은 "차이 없음"이다. C1·C2·C3는 시드 3개.</p>
+  <div id="compare-charts" class="charts"></div>
+  <div id="c1-card" class="card"></div>
+  <div id="rho-chart" class="charts"></div>
+  <div id="search-chart" class="charts"></div>
+  <p class="caption small" id="compare-foot"></p>
+</section>
+</main>
+
+<footer>
+  <p>데이터: neuPrint hemibrain v1.2.1 · 코드와 원자료: <a href="https://github.com/stx4R/Fly">github.com/stx4R/Fly</a> · 모든 수치는 <code>data/*.json</code>에서 읽는다.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>
