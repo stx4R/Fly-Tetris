@@ -4,3 +4,4 @@ node_modules/
 data/raw/
 data/experiment/
 web/dist/
+.claude/
