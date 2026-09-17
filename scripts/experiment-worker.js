@@ -6,6 +6,7 @@
 //   play       학습된 리드아웃으로 게임 (시드 목록)
 //   baseline   무작위 / 교사 게임
 //   separation 결정 내 분리 지표 (distinctFrac, meanDNDiff, 전파 프로파일, withinKendall) — 5단계
+//   featurize-boards  임의 보드 묶음의 DN 발화율 — 6단계 rank-train (대전 데이터 후보 afterstate)
 // 모든 리저버 작업은 T (창 스텝) 와 gIn (인코더 이득) 을 받는다 (기본 50, G_IN).
 // 조건 커넥톰·스펙트럼·인코더는 키별로 캐시한다 (최근 2개).
 
@@ -121,6 +122,20 @@ function handle(job) {
         spikes += r.activity[0];
       }
       return { dn, act, dim: f.dim, meanRateHz: spikes / n / e.connectome.neurons.length / (f.T / 1000), transfer: [dn.buffer, ...(act ? [act.buffer] : [])] };
+    }
+    case 'featurize-boards': {
+      // 6단계 rank-train: 임의 보드 묶음(Uint8Array n×200) 의 DN 발화율. 조건은 C0 (실제 커넥톰) 고정.
+      const e = condition(job.key ?? 'C0', job.condition ?? 'C0', job.seed ?? 0);
+      const f = createFeaturizer(e.connectome, job.params, e.spectral, { T: job.T ?? 50, gIn: job.gIn ?? G_IN });
+      const n = job.boards.length / 200;
+      const dn = new Float32Array(n * f.dim);
+      let spikes = 0;
+      for (let i = 0; i < n; i++) {
+        const r = f.featurizeBoth(job.boards.subarray(i * 200, (i + 1) * 200));
+        dn.set(r.dn, i * f.dim);
+        spikes += r.activity[0];
+      }
+      return { dn, dim: f.dim, from: job.from, meanRateHz: spikes / n / e.connectome.neurons.length / (f.T / 1000), transfer: [dn.buffer] };
     }
     case 'train': {
       const { samples, decisions, split } = getAfterstates();

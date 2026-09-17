@@ -1,10 +1,15 @@
 # Fly
 
-초파리 hemibrain 커넥톰의 실제 시냅스 연결을 고정 리저버로 쓰고, 리드아웃만 학습시켜 테트리스를
-플레이하는 시뮬레이터. 최종 산출물은 GitHub Pages 정적 웹 시각화 + 보고서.
+초파리 hemibrain 커넥톰의 **배선 구조**를 제약으로 가진 네트워크로 테트리스(대전 규칙)를 시뮬레이션하는 프로젝트. 최종 산출물은 GitHub Pages 웹(대전 UI) + 보고서.
 
-**현재 단계: 6단계 완료 — 웹 시각화 배포: https://stx4r.github.io/Fly/** (`docs/stage6-web.md`). 시뮬레이션 결과는 `docs/stage5-separation.md`.
-보고서는 7단계.
+**프로젝트 주장 (6단계에서 변경).** 1–5단계는 커넥톰의 시냅스 수를 *고정 가중치*로 쓰는 리저버였고, 그 결과는 음성이었다 (결정 내 순위 정보 없음,
+플레이 무작위 수준 — `docs/stage5-separation.md`, 근거 장으로 유지). 7단계부터 커넥톰에서 오는 것은 **배선 구조(희소성 마스크)뿐이고 가중치는 학습된다.**
+정확한 표현은 "초파리 커넥톰 배선 제약을 가진 네트워크" 다. "초파리가 테트리스를 학습했다" 류의 표현은 어디에도 쓰지 않는다.
+
+**현재 단계: 7단계 Phase A 완료 — 게이트 미달로 정지** (`docs/stage7-wiring-constraint.md`). 커넥톰 마스크 위 가중치 학습으로 결정 내 순위 정보는 생겼지만
+(테스트 τ 0.17, 전체 후보 top-1 37.8% — 게이트 35% 통과) 플레이 게이트(공격 중앙값 ≥ 150, 생존 ≥ 70%)는 미달 (4.5, 0%). 진단: 학습 부분집합 밖의 나쁜 수를 거른 적이 없고,
+같은 파라미터 수의 밀집 MLP 도 같은 프로토콜에서 같은 방식으로 죽는다 — 배선 제약이 아니라 학습 설정의 한계. 다음 축은 사용자 결정 (문서 §5.3). Phase B(null 비교)는 게이트 통과 후.
+계획: 7단계 → 8단계 웹·대전 UI (1차 시각화 콘솔은 배포됨: https://stx4r.github.io/Fly/, `docs/stage8-web-v1.md`) → 9단계 보고서.
 
 ## 사용
 
@@ -18,10 +23,16 @@ npm run calibrate  # 시드 랜덤 탐색 → 상위 20점 재평가 → 프로�
 npm run calibrate-esn  # Plan B: 같은 CSR 위 ESN 을 같은 프로브·게이트로 (게이트 미달 시에만, ~16분)
 npm run collect    # afterstate 30,000+ 수집 → data/afterstates.json (게임 단위 60/20/20 분할, 누수 검사)
 npm run search-separation -- --profile-all   # 5단계 1부: 분리 동작점 탐색 600점 → data/separation-search.json (3 h 상한)
-npm run estimate-budget  # 실험 소요 추정 (단위 비용·워커 처리량 실측), 8 h 초과 시 exit 1
+npm run estimate-budget-stage5  # 4·5단계 실험 소요 추정 (단위 비용·워커 처리량 실측), 8 h 초과 시 exit 1
 npm run experiment # 조건 × 리드아웃 × 목표 실험 → data/results.json (--games --cap --null-seeds --combos --quick)
-npm run smoke      # results.json 의 C0 학습 리드아웃으로 afterstate 플레이 500조각 (없으면 3단계 랜덤 리드아웃 경로)
-npm run build-viz  # 6단계 시각화 데이터 → web/data/ (서브샘플 그래프·한 게임 기록·요약)
+npm run smoke      # data/stage7/c0.model.json 이 있으면 학습된 C0 로 대전 엔진 1000조각 (전체 후보, 단일 스레드, 불법 배치 0 확인); 없으면 4단계 리드아웃 500조각 → 3단계 랜덤 리드아웃 (--stage4/--stage3 로 강제)
+npm run tune-teacher    # 6단계: 공격형 교사 CEM 튜닝 (세대 20 × 개체 50, 12 워커 ~15 min) → data/teacher-attack.json, 목표 미달 시 exit 1
+npm run collect-versus  # 6단계: 공격형 교사(scored 빔)로 결정 40,000 수집 (hold·next 5·인공 가비지) → data/versus-decisions.json.gz, 누수 검사
+npm run rank-train      # 6단계: 고정 리저버 + 손실 비교 (mse/centered/listwise/pairwise × linear/mlp × dn/board/hand) → data/rank-train.json (--decisions 8000 기본, ~4 min)
+npm run estimate-budget # 7단계 예산 추정 — 실제 희소 RNN 의 BPTT·점수·교사 라벨 단위 비용 + 워커 병렬 배율 실측 → Phase A 기대/상한, 8 h 초과 시 줄일 축을 제안하고 exit 1
+npm run train-c0        # 7단계 Phase A: C0 학습 (8k 결정 × K 8, T 25 BPTT) + DAgger 3 라운드 + 게이트 (top-1 ≥ 35%, 공격 중앙값 ≥ 150, 생존 ≥ 70%) → data/stage7-c0.json, data/stage7/c0.model.{bin,json}; 미달 시 exit 1 (~2.5 h, 12 워커, 체크포인트 재개)
+npm run train-nulls     # 7단계 Phase B (게이트 통과 후): C0 · C0-listwise · C1×2 · C3×2 · C4 · C5 · D0(밀집, 파라미터 수 일치) · C0-shuffled-init 을 같은 하이퍼파라미터·데이터로 1 라운드 → data/stage7-results.json (~8 h)
+npm run build-viz  # 8단계 1차 시각화 데이터 → web/data/ (서브샘플 그래프·한 게임 기록·요약)
 npm run build      # esbuild 번들 → web/dist (총 7.3 MB, 외부 요청 0 — Pretendard 는 node_modules 에서 복사)
 npm run serve      # 로컬 점검 http://localhost:8123
 npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
@@ -98,7 +109,36 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - gap: 완전 리셋에서만 특징 R² 0.45–0.51, gap 0/25/50 은 0.13–0.15. 지속 어트랙터가 50 스텝 감쇠로는 안 사라진다.
 - smoke: 660 배치/s (reservoir 1.33 ms/배치, gap full), 불법 배치 0, 도달불가 DN 7개 발화 0.
 
-## 6단계 — 웹 시각화 (`web/`, 배포 https://stx4r.github.io/Fly/)
+## 6단계 — 대전 엔진 + 공격형 교사 + 랭킹 학습 (자세히는 `docs/stage6-versus.md`)
+
+- **대전 엔진** (`src/tetris.js` 아래 절반, 순수 함수·상태 불변): hold 1칸(배치당 1회) · next 5 · 가비지 큐(하단 삽입, 한 공격 = 같은 구멍 열, 상쇄: 보낼 라인 < 큐면 차감 후 잔여만 수신, 확정당 최대 8줄) ·
+  탑아웃 · `boardHeight`. 공격 = 가이드라인 (1/2/3/4줄 → 0/1/2/4, T-스핀 2/4/6, 콤보 표, 퍼펙트 클리어 +10; B2B 없음). T-스핀 = 3-corner + 마지막 동작 회전 (앞 모서리 둘·TST 킥이면 full, 아니면 mini).
+  "마지막 동작이 회전" 은 스폰에서 가이드라인 이동(좌·우·소프트드롭·SRS 킥)으로 도달 가능한 정지 위치 전체를 BFS 로 구해 판정한다 (`reachablePlacements`; TSD·TST·tuck 이 모두 나온다, 조각당 20–35 µs).
+- **공격형 교사** (`src/teacher-attack.js`): Dellacherie 6 + attackSent · comboState · wellDepth(테트리스 준비도) · tspinSetup · garbageQueueHeight, 위험 높이 이상은 생존(Dellacherie) 평가, next 5 + hold 빔 서치(깊이 3 · 폭 8).
+  CEM(20 × 50, 목적 = 공격 + 0.5 × 생존 조각) 튜닝 → **1000조각 공격 중앙값 377 [371, 382], 생존 100%, 줄의 82% 가 테트리스** (목표 ≥ 250 / ≥ 90%). CEM 은 T-스핀 항을 버렸다 (가중치 음수) — 우물 하나로 테트리스를 연속으로 내는 편이 낫다.
+- **데이터** (`data/versus-decisions.json.gz`, 12.4 MB): 223 게임 / **40,129 결정** / 1.70 M 후보 (42.5/결정), 후보 전체에 교사(scored 빔) 값, 게임 단위 60/20/20 분할·누수 0,
+  인공 가비지 0.163 줄/조각 (조각당 확률 0.08 로 1–4줄; 큐에 가비지가 있는 결정 9.9%, 가비지를 받은 뒤의 결정 92%). 결과 보드는 저장하지 않고 엔진으로 복원한다.
+- **랭킹 학습 검증** (`src/rank-train.js`, 8,019 결정·1,204 테스트 결정): 5단계 최종 동작점의 고정 리저버(C0 점, T 25) 에 손실만 교체. 교사 값 분산의 86.7% 가 결정 간 분산 (5단계 진단 확인).
+  **같은 DN 특징에서 mse → listwise 는 Δτ −0.011, Δtop-1 +1.1%p (CI 겹침); 어느 손실이든 τ 0.00–0.03, top-1 16–20%.** 같은 정보(원 보드 200 셀)에 같은 손실을 주면 τ 0.31 / top-1 43% —
+  **원인 1(손실)의 기여는 0, 원인 2(고정 가중치의 표현력)가 지배적이다.** 랭킹 손실 자체는 정상 (원 보드에서 top-1 +12–14%p, CI 분리); listwise ≈ pairwise (CI 겹침, pairwise 가 근소 우위).
+- **7단계 예산** (`npm run estimate-budget`, 실측 단위 비용: 언롤 스텝당 7.0 ms = 순전파 1.4 + 역전파 5.6, 12 워커 ×7.6): 계획대로(40k 결정 × 42.5 후보 × T 25, 10 epoch) **70 h → 8 h 초과, 멈춤.**
+  권장 축소: 결정당 후보 42.5 → 8 (교사 선택 + 상위 7) 그리고 결정 24k → 8k → 4.4 h (상한 8.8 h). 언롤 T 25 → 15 는 그 다음, 간선 가지치기(weight ≥ 5: 간선 63% / 시냅스 90% 유지)는 연구 대상을 바꾸므로 마지막.
+
+## 7단계 — 커넥톰 배선 제약 + 가중치 학습 (자세히는 `docs/stage7-wiring-constraint.md`)
+
+- **모델** (`src/sparse-rnn.js`): 레이트 RNN `x(t+1) = (1−lr)x + lr·tanh((W⊙M)x + W_in·u + b)`, T 25, lr 0.33. M = 커넥톰 인접 마스크 (8,000 뉴런 · 459,168 간선, 고정), W 는 마스크 위치에만 있는 학습 파라미터
+  (초기값 = 3단계 α=1 정규화 시냅스 수 × ρ 1.0 — 학습이 커넥톰 초기값에서 얼마나 멀어지는지 재기 위해). W_in (2,316 × 256, RF 초기값) 과 b 도 학습, 출력 DN 107 → 창 평균 → 표준화 → 107→64→1 리드아웃. P = 1,067,041.
+  입력 u 256 = afterstate 보드 200 + 놓은 조각 7 + 회전 4 + hold 8 + 다음 5×7 + 가비지 큐 1 + 콤보 1 (전부 [0,1]). 후보별 afterstate, 결정당 K 회 전방.
+- **학습**: pairwise 힌지, 결정당 K 8 (교사 선택 + 상위 7), BPTT, Adam 1e-3 코사인, 전역 클리핑 5, 검증(K 8) 조기 종료; **평가는 전체 후보** (K 8 평가는 함수가 거부). DAgger 3 라운드 (정책 플레이 2k 결정에 교사 라벨 → warm start).
+  C2 weight-shuffle 은 삭제 — 가중치를 학습하면 C0 와 같은 마스크라 null 이 아니다 (초기값 대조군 `C0-shuffled-init` 은 Phase B 보조). 후보 배치 + 전치 없는 역전파 커널로 6단계 추정(7.0 ms/후보·스텝)의 1/10 (0.59 ms); Phase A 2.98 h.
+- **Phase A 결과** (테스트 = 6단계와 같은 1,204 결정, 전체 후보 42.6 개; 단독 플레이 20 게임 × 1000, 교사와 같은 시드): 학습 전 top-1 24.5% → 라운드 0 τ 0.172 / top-1 36.2% → DAgger 라운드 1 38.8% → 3 **37.8% [34.9, 40.7]** (게이트 35% 통과;
+  고정 리저버 16–20% 초과, 원 보드 43% 미만). 플레이 **공격 중앙값 4.5 [2.5, 7.5], 생존 0/20, 조각 중앙값 134, 테트리스 0** (교사 377 / 100%) — **게이트 미달, Phase B 미실행.**
+  on-policy 교사 일치 24.2 → 27.5 → 29.3% (분포 이동의 크기); DAgger 는 1 라운드에서 공격 3 → 7.5, 조각 114 → 163 을 냈고 그 뒤 정체.
+- **W 변화** (커넥톰 초기값 대비): corr 0.825, |Δw| 평균 0.017 (초기 평균 0.017), **간선 39% 가 억제성** (초기 0%). 변한 곳은 입구 — input→hidden corr 0.26, W_in 보드 열 0.49, AOTU/LO/PVLP 의 중간층 뉴런; hidden→output 0.96 · KC 간선 0.97 은 거의 그대로.
+- **진단**: 정책 선택의 16% 가 교사 값 하위 절반 (학습 상태에서도 14%) — 학습 부분집합 밖의 수를 거른 적이 없다. 파일럿: 음성 구성을 교사 선택 + 상위 3 + 무작위 4 로 바꾸면 top-1 40.9% [38.0, 43.8]·조각 200 (CI 분리) 이지만 생존은 여전히 0.
+  **같은 P 의 밀집 MLP(D0) 도 같은 프로토콜에서 top-1 35.6% · 조각 80 · 테트리스 0 으로 죽는다** — 미달의 원인은 마스크가 아니라 1-ply 모방 · 8k 결정 · hard-negative 설정. 제안 축(음성 구성 · 데이터 8k→24k+ · DAgger 규모 · 플레이 시 얕은 탐색 · 정규화 · 중간 게이트)은 문서 §5.3, 결정은 사용자.
+
+## 8단계 1차 — 웹 시각화 (`web/`, 배포 https://stx4r.github.io/Fly/; 개편 전 "6단계" 로 만든 콘솔)
 
 사이드바 콘솔 7화면(해시 라우터), 프레임워크 없음(three + esbuild 만). 디자인은 토스 디자인 시스템 토큰(블루 단일 강조 · 1px 헤어라인 · 라운드 ladder ·
 Pretendard 가변 폰트 self-host · 숫자 고정폭). 모든 수치는 `web/data/*.json`(← `data/*.json`)에서 읽는다.
@@ -143,6 +183,11 @@ Pretendard 가변 폰트 self-host · 숫자 고정폭). 모든 수치는 `web/d
 - k_local ∈ [0, 20] 은 스텝당 증분 규약에서 유효 범위(< 0.5)보다 약 50배 넓어 탐색 표본의 96% 가 침묵 영역에 떨어졌다.
 - **afterstate 후보들은 DN 발화 수로 구분은 되지만(distinct 70–90%, dnDiff 7–17) 순위 정보가 없다** (결정 내 τ ≤ 0.075, 전 조건·전 탐색점).
   플레이는 전 조건 무작위 수준. 4단계의 "중간층 0.6/5577" 은 빈 보드 표본 편향이었다 (`docs/stage5-separation.md` §1).
+  6단계에서 손실을 결정 단위 랭킹 손실로 바꿔도 이 값은 움직이지 않았다 (τ 0.00–0.03) — 고정 가중치 리저버의 표현 한계다 (`docs/stage6-versus.md` §5.3).
+- **7단계 학습 부분집합은 hard negatives 뿐이다** (교사 선택 + 상위 7). 정책은 나머지 34 개 후보의 점수를 학습한 적이 없어 결정의 1/6 에서 교사 값 하위 절반의 수를 고른다 — 플레이 게이트 미달의 직접 원인 (`docs/stage7-wiring-constraint.md` §5).
+- **7단계 W 변화량은 Adam 의 성질을 반영한다.** lr 1e-3 은 평균 0.017 인 초기 가중치에 스텝당 ~6% 라, 변화량은 기울기 크기가 아니라 방향의 일관성을 잰다. "커넥톰 초기값이 의미 있었는가" 는 초기값 대조군(`C0-shuffled-init`, Phase B) 없이는 답할 수 없다.
+- **학습 전 모델이 top-1 24.5%** 를 낸다 (채운 칸이 적은 결과 보드가 활동이 낮은 편향). 7단계 top-1 수치는 이 기준선 위에서 읽어야 한다.
+- **대전 엔진의 물리는 배치 단위 근사다.** 조각은 스폰에서 좌·우·소프트드롭·회전으로 도달 가능한 정지 위치에 바로 놓이며 (시간·중력·락 딜레이 없음), 180° 회전·B2B 보너스·T-스핀 mini 의 세부 규칙(가이드라인 변형별 차이)은 구현하지 않았다.
 
 ## 구조
 
@@ -153,13 +198,24 @@ scripts/spectral.js             거듭제곱법 스펙트럼 반경 → data/spe
 scripts/calibrate.js            시드 랜덤 탐색 + 재평가 + 게이트 → data/calibration.json
 scripts/collect.js              afterstate 수집 → data/afterstates.json
 scripts/search-separation.js    5단계 1부 분리 동작점 탐색
-scripts/build-viz-data.js  build-web.js  serve-web.js  deploy-pages.js   6단계 시각화 데이터·번들·로컬 서버·Pages 배포
+scripts/build-viz-data.js  build-web.js  serve-web.js  deploy-pages.js   8단계 1차 시각화 데이터·번들·로컬 서버·Pages 배포
+scripts/tune-teacher.js  teacher-worker.js   6단계 공격형 교사 CEM 튜닝 (워커: evaluate / play / collect)
+scripts/collect-versus.js       6단계 대전 결정 데이터 수집
+scripts/rank-train.js  rank-worker.js      6단계 랭킹 손실 검증 실행 (리저버 특징은 experiment-worker 의 featurize-boards)
+scripts/estimate-budget.js      7단계 예산 추정 (실측 단위 비용 × 계획 축; estimate-budget-stage5.js 는 4·5단계용)
+scripts/train-c0.js  train-nulls.js  stage7-lib.js  stage7-worker.js   7단계 Phase A (C0 + DAgger + 게이트) / Phase B (null 비교) / 공용 조율 (데이터셋·풀·라운드 학습·평가·체크포인트) / 워커 (grad·loss·score·play·bench)
+scripts/stage7-diagnose.js  stage7-pilot-negatives.js   7단계 진단 (전체 후보 선택 품질: 하위 50% 선택 비율 등) / 파일럿 (음성 구성 mixed · D0 밀집 참조; Phase A 의 일부가 아님)
+src/sparse-rnn.js               7단계 모델: 커넥톰 마스크 희소 레이트 RNN (B 별 생성 배치 커널, 전치 없는 BPTT 역전파, 리드아웃 표준화) + D0 밀집 MLP (파라미터 수 정확 일치)
+src/stage7-data.js  stage7-train.js  stage7-agent.js   u 인코딩·K 부분집합·전체 후보 평가·DAgger 병합(누수 검사) / Adam·클리핑·코사인·W 변화 분석 / 학습된 정책 에이전트 (전체 후보 argmax)
 web/index.html  web/style.css  web/src/{main,router,settings,home,experiments,connectome,decision,heatmap,spikes,compare,util}.js   정적 사이트 소스 (web/data, web/dist 는 생성물)
-scripts/estimate-budget.js      4단계 소요 추정
+scripts/estimate-budget-stage5.js  4·5단계 소요 추정
 scripts/experiment.js  experiment-worker.js  pool.js  experiment-config.js   4단계 실험 (조건별 캐시, 재개 가능)
 scripts/smoke-run.js            500조각 스모크 플레이 (학습 리드아웃 또는 랜덤 리드아웃)
 src/connectome.js               층 판정, 2-hop 후보, 절단, primary ROI, 스키마 파서, 그래프 검사
-src/tetris.js  src/heuristic.js 엔진, Dellacherie 교사
+src/tetris.js  src/heuristic.js 엔진(2단계 배치 API + 6단계 대전 엔진: hold·next 5·가비지·공격·T-스핀·BFS 도달 배치), Dellacherie 교사
+src/teacher-attack.js           6단계 공격형 교사 (11 특징 + 위험 전환 + 빔 서치 / scored 모드)
+src/versus-data.js              6단계 결정 단위 데이터 (수집·직렬화·복원; collectGame 의 policy 옵션 = 7단계 DAgger, 인공 가비지 주입기)
+src/rank-train.js               6단계 랭킹 손실 (mse / centered / listwise / pairwise) + linear/MLP 점수 모델 + 평가
 src/spectral.js                 단위 CSR (alpha 정규화), 거듭제곱법
 src/reservoir.js                이벤트 구동 LIF + SFA + ROI 억제 풀 + gap
 src/encode.js  src/decode.js    보드 → 전류, DN 발화율 → 행동

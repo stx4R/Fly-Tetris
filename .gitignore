@@ -5,3 +5,10 @@ data/raw/
 data/experiment/
 web/dist/
 .claude/
+data/versus-decisions.json.gz
+data/stage7/**/*.theta.f64
+data/stage7/**/*-dagger*.json.gz
+data/stage7/*quick*
+data/stage7-c0-quick.json
+data/stage7/**/*.log
+data/stage7-results-quick.json

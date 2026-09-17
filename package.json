@@ -3,7 +3,7 @@
   "version": "0.6.0",
   "private": true,
   "type": "module",
-  "description": "Drosophila hemibrain connectome as a fixed reservoir for Tetris. Stage 6: web console (Toss design system) + GitHub Pages.",
+  "description": "Drosophila hemibrain connectome wiring as a sparsity mask for a Tetris-playing rate RNN whose weights are learned. Stage 7: wiring constraint + weight learning (BPTT, DAgger, null comparison).",
   "engines": {
     "node": ">=20"
   },
@@ -22,7 +22,13 @@
     "build-viz": "node scripts/build-viz-data.js",
     "build": "node scripts/build-web.js",
     "serve": "node scripts/serve-web.js",
-    "deploy": "node scripts/deploy-pages.js"
+    "deploy": "node scripts/deploy-pages.js",
+    "tune-teacher": "node scripts/tune-teacher.js",
+    "collect-versus": "node scripts/collect-versus.js",
+    "rank-train": "node scripts/rank-train.js",
+    "estimate-budget-stage5": "node scripts/estimate-budget-stage5.js",
+    "train-c0": "node scripts/train-c0.js",
+    "train-nulls": "node scripts/train-nulls.js"
   },
   "dependencies": {
     "three": "^0.186.0"

@@ -1,0 +1,360 @@
+{
+ "round": 3,
+ "trainDecisions": 13545,
+ "valDecisions": 2619,
+ "dagger": {
+  "games": 30,
+  "decisions": 2074,
+  "deadGames": 30,
+  "decisionsMedian": 63,
+  "agreeWithTeacher": 0.29315332690453233,
+  "attackPer1000": 45.323,
+  "garbageReceived": 246,
+  "merged": {
+   "train": 1905,
+   "val": 169,
+   "trainGames": 27,
+   "valGames": 3
+  },
+  "ms": 222096
+ },
+ "train": {
+  "history": [
+   {
+    "epoch": 1,
+    "train": 0.4390505600870715,
+    "val": 0.49749545706791404,
+    "lr": 0.0004522542485937369,
+    "gradNorm": 0.9622587160560429,
+    "clippedFrac": 0,
+    "ms": 547367
+   },
+   {
+    "epoch": 2,
+    "train": 0.4215192821117231,
+    "val": 0.5038807232053578,
+    "lr": 0.00032725424859373687,
+    "gradNorm": 0.9851006849298731,
+    "clippedFrac": 0,
+    "ms": 535750
+   },
+   {
+    "epoch": 3,
+    "train": 0.3981373187701309,
+    "val": 0.5022622103668289,
+    "lr": 0.00017274575140626317,
+    "gradNorm": 1.0510287371221452,
+    "clippedFrac": 0,
+    "ms": 565633
+   }
+  ],
+  "best": {
+   "epoch": 1,
+   "valLoss": 0.49749545706791404
+  },
+  "epochs": 3,
+  "steps": 1272,
+  "stepsPerEpoch": 424,
+  "clippedFrac": 0,
+  "ms": 1648758,
+  "loss": "pairwise",
+  "K": 8,
+  "batch": 32,
+  "lr": 0.0005,
+  "maxEpochs": 5,
+  "patience": 2
+ },
+ "test": {
+  "decisions": 1204,
+  "candidates": 51296,
+  "candidatesPerDecision": 42.604651162790695,
+  "tau": 0.17014300035340513,
+  "tauCI": [
+   0.16041054364597623,
+   0.18025072574973275
+  ],
+  "top1": 0.37790697674418605,
+  "top1CI": [
+   0.3488372093023256,
+   0.4069767441860465
+  ],
+  "regret": 49.6968189368771,
+  "chance": {
+   "decisions": 1204,
+   "candidates": 51296,
+   "candidatesPerDecision": 42.604651162790695,
+   "tau": 0.0005887950105951737,
+   "tauCI": [
+    -0.006187152021766774,
+    0.007588643199083794
+   ],
+   "top1": 0.03239202657807309,
+   "top1CI": [
+    0.022425249169435217,
+    0.04235880398671096
+   ],
+   "regret": 140.4245066445181
+  },
+  "ms": 105958
+ },
+ "play": {
+  "games": 20,
+  "attackMedian": 4.5,
+  "attackQuartiles": [
+   2,
+   4.5,
+   8
+  ],
+  "attackMean": 7.3,
+  "attackMedianCI": [
+   2.5,
+   7.5
+  ],
+  "attackPer1000": 45.797,
+  "survival": 0,
+  "survivalCI": [
+   0,
+   0
+  ],
+  "piecesMedian": 134,
+  "piecesMedianCI": [
+   111.5,
+   180.5
+  ],
+  "linesTotal": 940,
+  "linesPer1000": 294.856,
+  "tetrises": 0,
+  "tspins": 1,
+  "tetrisLineShare": 0,
+  "perfectClears": 0,
+  "maxCombo": 8,
+  "holds": 913,
+  "msPerPiece": 819.217,
+  "games_": [
+   {
+    "seed": 50000,
+    "attack": 6,
+    "pieces": 154,
+    "survived": false,
+    "lines": 45,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 49
+   },
+   {
+    "seed": 50001,
+    "attack": 4,
+    "pieces": 119,
+    "survived": false,
+    "lines": 31,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 31
+   },
+   {
+    "seed": 50002,
+    "attack": 13,
+    "pieces": 266,
+    "survived": false,
+    "lines": 90,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 5,
+    "holds": 73
+   },
+   {
+    "seed": 50003,
+    "attack": 4,
+    "pieces": 163,
+    "survived": false,
+    "lines": 48,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 47
+   },
+   {
+    "seed": 50004,
+    "attack": 1,
+    "pieces": 87,
+    "survived": false,
+    "lines": 18,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 3,
+    "holds": 31
+   },
+   {
+    "seed": 50005,
+    "attack": 41,
+    "pieces": 387,
+    "survived": false,
+    "lines": 138,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 8,
+    "holds": 105
+   },
+   {
+    "seed": 50006,
+    "attack": 4,
+    "pieces": 133,
+    "survived": false,
+    "lines": 36,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 3,
+    "holds": 46
+   },
+   {
+    "seed": 50007,
+    "attack": 16,
+    "pieces": 198,
+    "survived": false,
+    "lines": 62,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 7,
+    "holds": 53
+   },
+   {
+    "seed": 50008,
+    "attack": 0,
+    "pieces": 63,
+    "survived": false,
+    "lines": 9,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 2,
+    "holds": 19
+   },
+   {
+    "seed": 50009,
+    "attack": 2,
+    "pieces": 109,
+    "survived": false,
+    "lines": 27,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 3,
+    "holds": 16
+   },
+   {
+    "seed": 50010,
+    "attack": 8,
+    "pieces": 250,
+    "survived": false,
+    "lines": 83,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 73
+   },
+   {
+    "seed": 50011,
+    "attack": 2,
+    "pieces": 94,
+    "survived": false,
+    "lines": 21,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 3,
+    "holds": 23
+   },
+   {
+    "seed": 50012,
+    "attack": 6,
+    "pieces": 135,
+    "survived": false,
+    "lines": 37,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 3,
+    "holds": 24
+   },
+   {
+    "seed": 50013,
+    "attack": 7,
+    "pieces": 237,
+    "survived": false,
+    "lines": 78,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 93
+   },
+   {
+    "seed": 50014,
+    "attack": 1,
+    "pieces": 102,
+    "survived": false,
+    "lines": 24,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 2,
+    "holds": 20
+   },
+   {
+    "seed": 50015,
+    "attack": 3,
+    "pieces": 92,
+    "survived": false,
+    "lines": 21,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 4,
+    "holds": 29
+   },
+   {
+    "seed": 50016,
+    "attack": 14,
+    "pieces": 218,
+    "survived": false,
+    "lines": 70,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 6,
+    "holds": 86
+   },
+   {
+    "seed": 50017,
+    "attack": 8,
+    "pieces": 145,
+    "survived": false,
+    "lines": 41,
+    "tetris": 0,
+    "tspin": 1,
+    "maxCombo": 4,
+    "holds": 47
+   },
+   {
+    "seed": 50018,
+    "attack": 5,
+    "pieces": 122,
+    "survived": false,
+    "lines": 32,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 5,
+    "holds": 26
+   },
+   {
+    "seed": 50019,
+    "attack": 1,
+    "pieces": 114,
+    "survived": false,
+    "lines": 29,
+    "tetris": 0,
+    "tspin": 0,
+    "maxCombo": 2,
+    "holds": 22
+   }
+  ],
+  "cap": 1000,
+  "injector": null,
+  "ms": 274112
+ },
+ "ms": 2251201
+}

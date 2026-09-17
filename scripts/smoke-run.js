@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// 500조각 스모크 플레이. data/results.json 에 C0 의 학습된 리드아웃이 있으면 afterstate 에이전트(4단계)로, 없으면
-// 캘리브레이션 선택점 + 랜덤 리드아웃(3단계)으로 돈다. 크래시 없이 완주하고 전 배치가 합법인지 확인하며 처리량을 낸다.
-// 게임오버가 나면 보드와 리저버를 리셋하고 새 에피소드로 이어간다. 도달불가 DN 이 0회 발화하는지도 확인한다.
+// 스모크 플레이. 우선순위: (7단계) data/stage7/c0.model.json 이 있으면 학습된 C0 희소 RNN 으로 대전 엔진 1000 조각 (전체 후보, 단일 스레드) →
+// (4단계) data/results.json 의 C0 학습 리드아웃으로 afterstate 플레이 500 조각 → (3단계) 캘리브레이션 선택점 + 랜덤 리드아웃.
+// 크래시 없이 완주하고 전 배치가 합법인지 확인하며 처리량을 낸다. 옵션: --stage4 / --stage3 로 이전 단계 경로 강제, --pieces N.
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,6 +16,12 @@ import { existsSync } from 'node:fs';
 import { createAgent, createFeaturizer } from '../src/play.js';
 import { readoutFromJSON, valueOf } from '../src/readout.js';
 import { FEATURE_WEIGHTS } from '../src/afterstate.js';
+import { applyDecision, createPlayer, decisionCandidates } from '../src/tetris.js';
+import { createNetAgent } from '../src/stage7-agent.js';
+import { loadModel } from './stage7-lib.js';
+
+const argv = process.argv.slice(2);
+const optNum = (name, def) => { const i = argv.indexOf(`--${name}`); return i >= 0 ? Number(argv[i + 1]) : def; };
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PIECES = 500;
@@ -78,11 +84,42 @@ ${placements} placements in ${elapsed.toFixed(2)} s → ${rate.toFixed(1)} place
   console.log('smoke run OK (afterstate agent)');
 }
 
+// 7단계: 학습된 C0 (커넥톰 마스크 + 학습 가중치) 로 대전 엔진 플레이. 결정마다 전체 후보의 afterstate 를 점수화해 argmax — 선택이 decisionCandidates 안에 있는지 확인.
+function smokeStage7(connectome, pieces) {
+  const loaded = loadModel('c0', connectome);
+  const { doc, model } = loaded;
+  console.log(`using stage-7 C0 model data/stage7/${doc.file} (P ${doc.P}, trained ${doc.trainedAt}, rounds ${doc.rounds}; test top-1 ${(100 * doc.test.top1).toFixed(1)}%, play attack median ${doc.play.attackMedian}, survival ${(100 * doc.play.survival).toFixed(0)}%; gate ${doc.gate?.all ? 'passed' : 'NOT passed'})`);
+  const agent = createNetAgent(model);
+  const same = (a, b) => a.useHold === b.useHold && a.col === b.col && a.rot === b.rot && a.top === b.top;
+  let p = createPlayer(SEED);
+  let placed = 0, illegal = 0, episodes = 1, candidates = 0, lines = 0, attack = 0;
+  const t0 = performance.now();
+  while (placed < pieces) {
+    const legal = decisionCandidates(p);
+    if (!legal.length || p.dead) { episodes++; p = createPlayer(SEED + episodes); continue; }
+    candidates += legal.length;
+    const c = agent.choose(p);
+    if (!c || !legal.some((x) => same(x, c))) { illegal++; break; }
+    const r = applyDecision(p, c);
+    p = r.player;
+    lines += r.event.linesCleared; attack += r.event.attack;
+    placed++;
+    if (placed % 100 === 0) process.stdout.write(`  ${placed}/${pieces} pieces, ${lines} lines, attack ${attack}, episodes ${episodes} (${((performance.now() - t0) / 1000).toFixed(0)} s)`);
+  }
+  const elapsed = (performance.now() - t0) / 1000;
+  console.log(`
+${placed} placements in ${elapsed.toFixed(1)} s → ${(placed / elapsed).toFixed(2)} placements/s single thread (${(candidates / placed).toFixed(1)} candidate forwards per placement, ${(candidates / elapsed).toFixed(0)} candidates/s)`);
+  console.log(`  episodes ${episodes} (mean length ${(placed / episodes).toFixed(1)} pieces), lines cleared ${lines}, attack lines ${attack}, illegal placements ${illegal}`);
+  if (illegal > 0) { console.error('FAIL: illegal placement chosen'); process.exit(1); }
+  console.log('smoke run OK (stage-7 learned C0, versus engine)');
+}
+
 function main() {
   const connectome = parseConnectome(readFileSync(path.join(ROOT, 'data', 'connectome.json'), 'utf8'));
   const spectral = JSON.parse(readFileSync(path.join(ROOT, 'data', 'spectral.json'), 'utf8'));
+  if (!argv.includes('--stage4') && !argv.includes('--stage3') && existsSync(path.join(ROOT, 'data', 'stage7', 'c0.model.json'))) { smokeStage7(connectome, optNum('pieces', 1000)); return; }
   const resultsFile = path.join(ROOT, 'data', 'results.json');
-  if (existsSync(resultsFile)) {
+  if (!argv.includes('--stage3') && existsSync(resultsFile)) {
     const results = JSON.parse(readFileSync(resultsFile, 'utf8'));
     if (results.conditions?.C0?.readouts) { smokeLearned(connectome, spectral, results); return; }
   }

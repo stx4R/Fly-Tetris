@@ -1,0 +1,85 @@
+{
+ "estimatedAt": "2026-09-17T04:47:20.000Z",
+ "plan": {
+  "workers": 12,
+  "budgetHours": 8,
+  "train": 24000,
+  "val": 4000,
+  "test": 1204,
+  "testCands": 42.6,
+  "K": 8,
+  "T": 25,
+  "batch": 32,
+  "epochs0": {
+   "expected": 10,
+   "worst": 15
+  },
+  "rounds": {
+   "expected": 3,
+   "worst": 5
+  },
+  "daggerDecisions": 4000,
+  "epochsFt": {
+   "expected": 3,
+   "worst": 5
+  },
+  "quickGames": 5,
+  "playGames": 20,
+  "playCap": 1000,
+  "playDecisions": {
+   "expected": 500,
+   "worst": 1000
+  },
+  "playCands": 45,
+  "pilots": {
+   "runs": 4,
+   "train": 8000,
+   "val": 2000,
+   "epochs": 8
+  },
+  "phaseB": [
+   "C0 listwise",
+   "C1 s0",
+   "C1 s1",
+   "C3 s0",
+   "C3 s1",
+   "C4",
+   "C5",
+   "D0",
+   "C0 shuffled-init"
+  ]
+ },
+ "unit": {
+  "gradMs": 113.50948333333334,
+  "scoreMs": 6.564518954248365,
+  "teacherMs": 73.67213000000001,
+  "speedup": 9.070694730862781,
+  "stepFactor": 2.868887166202442,
+  "workers": 12,
+  "perCandidateStepMs": 0.5675474166666666
+ },
+ "phaseA2": {
+  "expected": {
+   "round0": 8847796.60667409,
+   "perRoundEvals": 739283.449047517,
+   "dagger": 488265.3343216249,
+   "finetune": 10289393.805182487,
+   "final": 295403.35294117645,
+   "total": 20660142.548166897
+  },
+  "worst": {
+   "round0": 13271694.910011137,
+   "perRoundEvals": 1995135.2323948052,
+   "dagger": 813775.5572027082,
+   "finetune": 31812728.429917756,
+   "final": 590806.7058823529,
+   "total": 48484140.83540876
+  }
+ },
+ "pilotsMs": 10891252.411187068,
+ "phaseB": {
+  "expected": 82622872.30865902,
+  "worst": 125096587.21516304
+ },
+ "elapsedMs": 7396
+}

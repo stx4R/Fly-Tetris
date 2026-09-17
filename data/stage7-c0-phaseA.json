@@ -1,0 +1,2591 @@
+{
+ "ranAt": "2026-09-17T02:43:27.878Z",
+ "elapsedMs": 10741658,
+ "config": {
+  "workers": 12,
+  "rounds": 3,
+  "daggerDecisions": 2000,
+  "daggerCap": 250,
+  "trainDecisions": 8000,
+  "valDecisions": 2000,
+  "playGames": 20,
+  "playCap": 1000,
+  "loss": "pairwise",
+  "resume": true,
+  "round0": {
+   "maxEpochs": 15,
+   "patience": 3,
+   "lr": 0.001,
+   "batch": 32,
+   "clip": 5,
+   "lrMin": 0
+  },
+  "finetune": {
+   "maxEpochs": 5,
+   "patience": 2,
+   "lr": 0.0005,
+   "batch": 32,
+   "clip": 5,
+   "lrMin": 0
+  },
+  "gate": {
+   "top1": 0.35,
+   "attackMedian": 150,
+   "survival": 0.7
+  },
+  "daggerSeedBase": 9000000,
+  "daggerValFraction": 0.1,
+  "quick": false
+ },
+ "hyper": {
+  "loss": "pairwise",
+  "K": 8,
+  "batch": 32,
+  "lr": 0.001,
+  "lrMin": 0,
+  "clip": 5,
+  "beta1": 0.9,
+  "beta2": 0.999,
+  "eps": 1e-8,
+  "maxEpochs": 15,
+  "patience": 3,
+  "daggerRounds": 3,
+  "daggerDecisions": 2000,
+  "daggerCap": 250,
+  "ftLr": 0.0005,
+  "ftMaxEpochs": 5,
+  "ftPatience": 2,
+  "rhoTarget": 1,
+  "T": 25,
+  "leak": 0.33,
+  "hidden": 64,
+  "seed": 1
+ },
+ "model": {
+  "kind": "sparse",
+  "condition": "C0",
+  "N": 8000,
+  "E": 459168,
+  "nInput": 2316,
+  "nOutput": 107,
+  "rhoUnit": 0.9996625020887736,
+  "P": 1067041,
+  "sizes": {
+   "W": 459168,
+   "Win": 592896,
+   "b": 8000,
+   "readout": 6977
+  },
+  "init": {
+   "W": "rhoTarget 1 / rho_unit × w_unit(alpha 1)",
+   "Win": "board 200 cols = stage-3 Gaussian RF (sum 1 per neuron) × 1.0; other 56 cols U(−0.1, 0.1)",
+   "b": 0,
+   "readout": "He-uniform"
+  },
+  "readoutStandardization": {
+   "n": 256,
+   "constantDNs": 7
+  }
+ },
+ "data": {
+  "trainDecisions": 8000,
+  "valDecisions": 2000,
+  "testDecisions": 1204,
+  "testCandidates": 51296,
+  "testGames": [
+   0,
+   4,
+   6,
+   11,
+   28,
+   29,
+   30,
+   31,
+   45
+  ],
+  "K": 8,
+  "trainGames": 45,
+  "valGames": 11,
+  "uDim": 256,
+  "uNormalization": {
+   "board": "0/1",
+   "onehots": "0/1",
+   "garbage": "min(1, pendingLines/8)",
+   "combo": "min(1, combo/10)",
+   "standardized": false
+  },
+  "poolCapacityRows": 323296,
+  "buildMs": 396,
+  "teacher": "data/teacher-attack.json (tuned 2026-09-16T14:30:49.073Z)",
+  "daggerGarbage": {
+   "rate": 0.08,
+   "dist": [
+    0.4,
+    0.3,
+    0.15,
+    0.15
+   ]
+  },
+  "finalTrainDecisions": 13545,
+  "finalValDecisions": 2619
+ },
+ "untrained": {
+  "decisions": 1204,
+  "candidates": 51296,
+  "candidatesPerDecision": 42.604651162790695,
+  "tau": 0.05064082432285214,
+  "tauCI": [
+   0.03900963160784269,
+   0.0626808984125788
+  ],
+  "top1": 0.24501661129568106,
+  "top1CI": [
+   0.22009966777408638,
+   0.2691029900332226
+  ],
+  "regret": 80.53003903654482,
+  "chance": {
+   "decisions": 1204,
+   "candidates": 51296,
+   "candidatesPerDecision": 42.604651162790695,
+   "tau": 0.0005887950105951737,
+   "tauCI": [
+    -0.006187152021766774,
+    0.007588643199083794
+   ],
+   "top1": 0.03239202657807309,
+   "top1CI": [
+    0.022425249169435217,
+    0.04235880398671096
+   ],
+   "regret": 140.4245066445181
+  },
+  "ms": 109264
+ },
+ "rounds": [
+  {
+   "round": 0,
+   "trainDecisions": 8000,
+   "valDecisions": 2000,
+   "dagger": null,
+   "train": {
+    "history": [
+     {
+      "epoch": 1,
+      "train": 0.5825787400455209,
+      "val": 0.5422808724026594,
+      "lr": 0.0009890738003669028,
+      "gradNorm": 1.2336992089014402,
+      "clippedFrac": 0.008,
+      "ms": 301254
+     },
+     {
+      "epoch": 2,
+      "train": 0.49346964577198665,
+      "val": 0.5093439121675382,
+      "lr": 0.0009567727288213005,
+      "gradNorm": 0.7693309041627365,
+      "clippedFrac": 0.004,
+      "ms": 296235
+     },
+     {
+      "epoch": 3,
+      "train": 0.46603985687570504,
+      "val": 0.5177060040031288,
+      "lr": 0.0009045084971874737,
+      "gradNorm": 0.6450585879121971,
+      "clippedFrac": 0.0026666666666666666,
+      "ms": 307937
+     },
+     {
+      "epoch": 4,
+      "train": 0.4484489828912411,
+      "val": 0.4962086372736897,
+      "lr": 0.0008345653031794292,
+      "gradNorm": 0.6297600031779214,
+      "clippedFrac": 0.002,
+      "ms": 308177
+     },
+     {
+      "epoch": 5,
+      "train": 0.43578798898392834,
+      "val": 0.48338852008882605,
+      "lr": 0.00075,
+      "gradNorm": 0.6463622031069561,
+      "clippedFrac": 0.0016,
+      "ms": 365672
+     },
+     {
+      "epoch": 6,
+      "train": 0.42382135539586147,
+      "val": 0.48098373033252284,
+      "lr": 0.0006545084971874737,
+      "gradNorm": 0.6596310726185955,
+      "clippedFrac": 0.0013333333333333333,
+      "ms": 380754
+     },
+     {
+      "epoch": 7,
+      "train": 0.40866117096179916,
+      "val": 0.4904486669214802,
+      "lr": 0.0005522642316338268,
+      "gradNorm": 0.6797092544691192,
+      "clippedFrac": 0.001142857142857143,
+      "ms": 316392
+     },
+     {
+      "epoch": 8,
+      "train": 0.3914580778504398,
+      "val": 0.47710390371124695,
+      "lr": 0.00044773576836617336,
+      "gradNorm": 0.7251595698527616,
+      "clippedFrac": 0.001,
+      "ms": 311654
+     },
+     {
+      "epoch": 9,
+      "train": 0.37448461822690515,
+      "val": 0.48065551346410346,
+      "lr": 0.00034549150281252633,
+      "gradNorm": 0.7990412200998535,
+      "clippedFrac": 0.0008888888888888889,
+      "ms": 312954
+     },
+     {
+      "epoch": 10,
+      "train": 0.35229489794730157,
+      "val": 0.4780823329300102,
+      "lr": 0.0002500000000000001,
+      "gradNorm": 0.8605697408055768,
+      "clippedFrac": 0.0008,
+      "ms": 310943
+     },
+     {
+      "epoch": 11,
+      "train": 0.33344686759745396,
+      "val": 0.4860036760528947,
+      "lr": 0.00016543469682057105,
+      "gradNorm": 0.9063364298244538,
+      "clippedFrac": 0.0007272727272727272,
+      "ms": 312722
+     }
+    ],
+    "best": {
+     "epoch": 8,
+     "valLoss": 0.47710390371124695
+    },
+    "epochs": 11,
+    "steps": 2750,
+    "stepsPerEpoch": 250,
+    "clippedFrac": 0.0007272727272727272,
+    "ms": 3524730,
+    "loss": "pairwise",
+    "K": 8,
+    "batch": 32,
+    "lr": 0.001,
+    "maxEpochs": 15,
+    "patience": 3
+   },
+   "test": {
+    "decisions": 1204,
+    "candidates": 51296,
+    "candidatesPerDecision": 42.604651162790695,
+    "tau": 0.17185342976118356,
+    "tauCI": [
+     0.1617674261315889,
+     0.18216855870658377
+    ],
+    "top1": 0.36212624584717606,
+    "top1CI": [
+     0.3347176079734219,
+     0.38953488372093026
+    ],
+    "regret": 54.258789036544854,
+    "chance": {
+     "decisions": 1204,
+     "candidates": 51296,
+     "candidatesPerDecision": 42.604651162790695,
+     "tau": 0.0005887950105951737,
+     "tauCI": [
+      -0.006187152021766774,
+      0.007588643199083794
+     ],
+     "top1": 0.03239202657807309,
+     "top1CI": [
+      0.022425249169435217,
+      0.04235880398671096
+     ],
+     "regret": 140.4245066445181
+    },
+    "ms": 102117
+   },
+   "play": {
+    "games": 20,
+    "attackMedian": 3,
+    "attackQuartiles": [
+     1,
+     3,
+     5
+    ],
+    "attackMean": 3.65,
+    "attackMedianCI": [
+     1,
+     3.5
+    ],
+    "attackPer1000": 29.699,
+    "survival": 0,
+    "survivalCI": [
+     0,
+     0
+    ],
+    "piecesMedian": 114.5,
+    "piecesMedianCI": [
+     88,
+     138.5
+    ],
+    "linesTotal": 651,
+    "linesPer1000": 264.849,
+    "tetrises": 0,
+    "tspins": 0,
+    "tetrisLineShare": 0,
+    "perfectClears": 0,
+    "maxCombo": 5,
+    "holds": 881,
+    "msPerPiece": 813.379,
+    "games_": [
+     {
+      "seed": 50000,
+      "attack": 5,
+      "pieces": 116,
+      "survived": false,
+      "lines": 30,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 40
+     },
+     {
+      "seed": 50001,
+      "attack": 3,
+      "pieces": 113,
+      "survived": false,
+      "lines": 29,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 40
+     },
+     {
+      "seed": 50002,
+      "attack": 6,
+      "pieces": 148,
+      "survived": false,
+      "lines": 43,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 51
+     },
+     {
+      "seed": 50003,
+      "attack": 0,
+      "pieces": 76,
+      "survived": false,
+      "lines": 14,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 25
+     },
+     {
+      "seed": 50004,
+      "attack": 1,
+      "pieces": 62,
+      "survived": false,
+      "lines": 9,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 23
+     },
+     {
+      "seed": 50005,
+      "attack": 4,
+      "pieces": 117,
+      "survived": false,
+      "lines": 30,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 38
+     },
+     {
+      "seed": 50006,
+      "attack": 6,
+      "pieces": 142,
+      "survived": false,
+      "lines": 40,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 50
+     },
+     {
+      "seed": 50007,
+      "attack": 3,
+      "pieces": 135,
+      "survived": false,
+      "lines": 37,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 40
+     },
+     {
+      "seed": 50008,
+      "attack": 1,
+      "pieces": 99,
+      "survived": false,
+      "lines": 23,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 36
+     },
+     {
+      "seed": 50009,
+      "attack": 0,
+      "pieces": 90,
+      "survived": false,
+      "lines": 19,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 37
+     },
+     {
+      "seed": 50010,
+      "attack": 2,
+      "pieces": 112,
+      "survived": false,
+      "lines": 28,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 44
+     },
+     {
+      "seed": 50011,
+      "attack": 3,
+      "pieces": 144,
+      "survived": false,
+      "lines": 41,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 57
+     },
+     {
+      "seed": 50012,
+      "attack": 0,
+      "pieces": 86,
+      "survived": false,
+      "lines": 17,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 30
+     },
+     {
+      "seed": 50013,
+      "attack": 0,
+      "pieces": 73,
+      "survived": false,
+      "lines": 13,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 31
+     },
+     {
+      "seed": 50014,
+      "attack": 1,
+      "pieces": 68,
+      "survived": false,
+      "lines": 11,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 1,
+      "holds": 22
+     },
+     {
+      "seed": 50015,
+      "attack": 5,
+      "pieces": 146,
+      "survived": false,
+      "lines": 41,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 56
+     },
+     {
+      "seed": 50016,
+      "attack": 26,
+      "pieces": 404,
+      "survived": false,
+      "lines": 145,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 141
+     },
+     {
+      "seed": 50017,
+      "attack": 3,
+      "pieces": 144,
+      "survived": false,
+      "lines": 41,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 52
+     },
+     {
+      "seed": 50018,
+      "attack": 1,
+      "pieces": 59,
+      "survived": false,
+      "lines": 7,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 17
+     },
+     {
+      "seed": 50019,
+      "attack": 3,
+      "pieces": 124,
+      "survived": false,
+      "lines": 33,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 51
+     }
+    ],
+    "cap": 1000,
+    "injector": null,
+    "ms": 294464
+   },
+   "ms": 3921317
+  },
+  {
+   "round": 1,
+   "trainDecisions": 9783,
+   "valDecisions": 2274,
+   "dagger": {
+    "games": 31,
+    "decisions": 2057,
+    "deadGames": 31,
+    "decisionsMedian": 59,
+    "agreeWithTeacher": 0.24161400097228974,
+    "attackPer1000": 43.267,
+    "garbageReceived": 267,
+    "merged": {
+     "train": 1783,
+     "val": 274,
+     "trainGames": 28,
+     "valGames": 3
+    },
+    "ms": 183400
+   },
+   "train": {
+    "history": [
+     {
+      "epoch": 1,
+      "train": 0.42681437151201396,
+      "val": 0.48345912827785026,
+      "lr": 0.0004522542485937369,
+      "gradNorm": 0.8027181778971361,
+      "clippedFrac": 0,
+      "ms": 223824
+     },
+     {
+      "epoch": 2,
+      "train": 0.40732151165024594,
+      "val": 0.48514388605614794,
+      "lr": 0.00032725424859373687,
+      "gradNorm": 0.8326699719207071,
+      "clippedFrac": 0,
+      "ms": 229574
+     },
+     {
+      "epoch": 3,
+      "train": 0.3876847879128798,
+      "val": 0.49327176337112644,
+      "lr": 0.00017274575140626317,
+      "gradNorm": 0.9019123785337066,
+      "clippedFrac": 0,
+      "ms": 303830
+     }
+    ],
+    "best": {
+     "epoch": 1,
+     "valLoss": 0.48345912827785026
+    },
+    "epochs": 3,
+    "steps": 918,
+    "stepsPerEpoch": 306,
+    "clippedFrac": 0,
+    "ms": 757236,
+    "loss": "pairwise",
+    "K": 8,
+    "batch": 32,
+    "lr": 0.0005,
+    "maxEpochs": 5,
+    "patience": 2
+   },
+   "test": {
+    "decisions": 1204,
+    "candidates": 51296,
+    "candidatesPerDecision": 42.604651162790695,
+    "tau": 0.17181831377055864,
+    "tauCI": [
+     0.16169976859089458,
+     0.1823139712434308
+    ],
+    "top1": 0.38787375415282394,
+    "top1CI": [
+     0.3596345514950166,
+     0.4161129568106312
+    ],
+    "regret": 48.4347906976744,
+    "chance": {
+     "decisions": 1204,
+     "candidates": 51296,
+     "candidatesPerDecision": 42.604651162790695,
+     "tau": 0.0005887950105951737,
+     "tauCI": [
+      -0.006187152021766774,
+      0.007588643199083794
+     ],
+     "top1": 0.03239202657807309,
+     "top1CI": [
+      0.022425249169435217,
+      0.04235880398671096
+     ],
+     "regret": 140.4245066445181
+    },
+    "ms": 116247
+   },
+   "play": {
+    "games": 20,
+    "attackMedian": 7.5,
+    "attackQuartiles": [
+     4,
+     7.5,
+     15
+    ],
+    "attackMean": 8.6,
+    "attackMedianCI": [
+     4,
+     11
+    ],
+    "attackPer1000": 48.601,
+    "survival": 0,
+    "survivalCI": [
+     0,
+     0
+    ],
+    "piecesMedian": 163,
+    "piecesMedianCI": [
+     123.5,
+     193.5
+    ],
+    "linesTotal": 1081,
+    "linesPer1000": 305.454,
+    "tetrises": 0,
+    "tspins": 2,
+    "tetrisLineShare": 0,
+    "perfectClears": 0,
+    "maxCombo": 6,
+    "holds": 1219,
+    "msPerPiece": 849.27,
+    "games_": [
+     {
+      "seed": 50000,
+      "attack": 9,
+      "pieces": 175,
+      "survived": false,
+      "lines": 53,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 67
+     },
+     {
+      "seed": 50001,
+      "attack": 4,
+      "pieces": 123,
+      "survived": false,
+      "lines": 32,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 35
+     },
+     {
+      "seed": 50002,
+      "attack": 9,
+      "pieces": 139,
+      "survived": false,
+      "lines": 39,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 49
+     },
+     {
+      "seed": 50003,
+      "attack": 11,
+      "pieces": 187,
+      "survived": false,
+      "lines": 58,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 53
+     },
+     {
+      "seed": 50004,
+      "attack": 1,
+      "pieces": 81,
+      "survived": false,
+      "lines": 16,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 32
+     },
+     {
+      "seed": 50005,
+      "attack": 1,
+      "pieces": 92,
+      "survived": false,
+      "lines": 20,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 31
+     },
+     {
+      "seed": 50006,
+      "attack": 2,
+      "pieces": 124,
+      "survived": false,
+      "lines": 33,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 35
+     },
+     {
+      "seed": 50007,
+      "attack": 17,
+      "pieces": 252,
+      "survived": false,
+      "lines": 84,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 79
+     },
+     {
+      "seed": 50008,
+      "attack": 4,
+      "pieces": 116,
+      "survived": false,
+      "lines": 30,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 33
+     },
+     {
+      "seed": 50009,
+      "attack": 8,
+      "pieces": 153,
+      "survived": false,
+      "lines": 45,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 55
+     },
+     {
+      "seed": 50010,
+      "attack": 0,
+      "pieces": 103,
+      "survived": false,
+      "lines": 24,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 44
+     },
+     {
+      "seed": 50011,
+      "attack": 15,
+      "pieces": 198,
+      "survived": false,
+      "lines": 62,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 77
+     },
+     {
+      "seed": 50012,
+      "attack": 20,
+      "pieces": 389,
+      "survived": false,
+      "lines": 139,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 6,
+      "holds": 148
+     },
+     {
+      "seed": 50013,
+      "attack": 11,
+      "pieces": 173,
+      "survived": false,
+      "lines": 53,
+      "tetris": 0,
+      "tspin": 1,
+      "maxCombo": 6,
+      "holds": 64
+     },
+     {
+      "seed": 50014,
+      "attack": 2,
+      "pieces": 104,
+      "survived": false,
+      "lines": 25,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 28
+     },
+     {
+      "seed": 50015,
+      "attack": 15,
+      "pieces": 235,
+      "survived": false,
+      "lines": 77,
+      "tetris": 0,
+      "tspin": 1,
+      "maxCombo": 5,
+      "holds": 88
+     },
+     {
+      "seed": 50016,
+      "attack": 6,
+      "pieces": 189,
+      "survived": false,
+      "lines": 59,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 57
+     },
+     {
+      "seed": 50017,
+      "attack": 7,
+      "pieces": 219,
+      "survived": false,
+      "lines": 71,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 67
+     },
+     {
+      "seed": 50018,
+      "attack": 4,
+      "pieces": 142,
+      "survived": false,
+      "lines": 40,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 49
+     },
+     {
+      "seed": 50019,
+      "attack": 26,
+      "pieces": 345,
+      "survived": false,
+      "lines": 121,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 128
+     }
+    ],
+    "cap": 1000,
+    "injector": null,
+    "ms": 335023
+   },
+   "ms": 1392144
+  },
+  {
+   "round": 2,
+   "trainDecisions": 11640,
+   "valDecisions": 2450,
+   "dagger": {
+    "games": 31,
+    "decisions": 2033,
+    "deadGames": 31,
+    "decisionsMedian": 63,
+    "agreeWithTeacher": 0.2754549926217413,
+    "attackPer1000": 34.432,
+    "garbageReceived": 276,
+    "merged": {
+     "train": 1857,
+     "val": 176,
+     "trainGames": 28,
+     "valGames": 3
+    },
+    "ms": 242420
+   },
+   "train": {
+    "history": [
+     {
+      "epoch": 1,
+      "train": 0.4483242933262145,
+      "val": 0.4915756673791256,
+      "lr": 0.0004522542485937369,
+      "gradNorm": 0.8396853982200413,
+      "clippedFrac": 0,
+      "ms": 491556
+     },
+     {
+      "epoch": 2,
+      "train": 0.4310690357888653,
+      "val": 0.49265790173876417,
+      "lr": 0.00032725424859373687,
+      "gradNorm": 0.8667412591521205,
+      "clippedFrac": 0,
+      "ms": 472562
+     },
+     {
+      "epoch": 3,
+      "train": 0.41017907859830643,
+      "val": 0.4879758423804019,
+      "lr": 0.00017274575140626317,
+      "gradNorm": 0.9369104468427393,
+      "clippedFrac": 0,
+      "ms": 493545
+     },
+     {
+      "epoch": 4,
+      "train": 0.38988715085840636,
+      "val": 0.4919175036084996,
+      "lr": 0.000047745751406263163,
+      "gradNorm": 0.9573114892298573,
+      "clippedFrac": 0,
+      "ms": 497612
+     },
+     {
+      "epoch": 5,
+      "train": 0.37543156845061604,
+      "val": 0.49264611772288863,
+      "lr": 0,
+      "gradNorm": 0.9978668928250802,
+      "clippedFrac": 0,
+      "ms": 496294
+     }
+    ],
+    "best": {
+     "epoch": 3,
+     "valLoss": 0.4879758423804019
+    },
+    "epochs": 5,
+    "steps": 1820,
+    "stepsPerEpoch": 364,
+    "clippedFrac": 0,
+    "ms": 2451582,
+    "loss": "pairwise",
+    "K": 8,
+    "batch": 32,
+    "lr": 0.0005,
+    "maxEpochs": 5,
+    "patience": 2
+   },
+   "test": {
+    "decisions": 1204,
+    "candidates": 51296,
+    "candidatesPerDecision": 42.604651162790695,
+    "tau": 0.16790439503449486,
+    "tauCI": [
+     0.15792785396343517,
+     0.17834654028540178
+    ],
+    "top1": 0.37375415282392027,
+    "top1CI": [
+     0.34634551495016613,
+     0.4011627906976744
+    ],
+    "regret": 51.006081395348836,
+    "chance": {
+     "decisions": 1204,
+     "candidates": 51296,
+     "candidatesPerDecision": 42.604651162790695,
+     "tau": 0.0005887950105951737,
+     "tauCI": [
+      -0.006187152021766774,
+      0.007588643199083794
+     ],
+     "top1": 0.03239202657807309,
+     "top1CI": [
+      0.022425249169435217,
+      0.04235880398671096
+     ],
+     "regret": 140.4245066445181
+    },
+    "ms": 118131
+   },
+   "play": {
+    "games": 20,
+    "attackMedian": 5.5,
+    "attackQuartiles": [
+     3,
+     5.5,
+     11
+    ],
+    "attackMean": 6.35,
+    "attackMedianCI": [
+     3,
+     8.5
+    ],
+    "attackPer1000": 43.975,
+    "survival": 0,
+    "survivalCI": [
+     0,
+     0
+    ],
+    "piecesMedian": 139,
+    "piecesMedianCI": [
+     103,
+     169.5
+    ],
+    "linesTotal": 820,
+    "linesPer1000": 283.934,
+    "tetrises": 0,
+    "tspins": 1,
+    "tetrisLineShare": 0,
+    "perfectClears": 0,
+    "maxCombo": 7,
+    "holds": 867,
+    "msPerPiece": 847.46,
+    "games_": [
+     {
+      "seed": 50000,
+      "attack": 3,
+      "pieces": 134,
+      "survived": false,
+      "lines": 36,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 46
+     },
+     {
+      "seed": 50001,
+      "attack": 3,
+      "pieces": 126,
+      "survived": false,
+      "lines": 34,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 32
+     },
+     {
+      "seed": 50002,
+      "attack": 6,
+      "pieces": 144,
+      "survived": false,
+      "lines": 41,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 45
+     },
+     {
+      "seed": 50003,
+      "attack": 1,
+      "pieces": 94,
+      "survived": false,
+      "lines": 21,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 25
+     },
+     {
+      "seed": 50004,
+      "attack": 14,
+      "pieces": 170,
+      "survived": false,
+      "lines": 51,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 7,
+      "holds": 42
+     },
+     {
+      "seed": 50005,
+      "attack": 0,
+      "pieces": 79,
+      "survived": false,
+      "lines": 15,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 21
+     },
+     {
+      "seed": 50006,
+      "attack": 22,
+      "pieces": 297,
+      "survived": false,
+      "lines": 102,
+      "tetris": 0,
+      "tspin": 1,
+      "maxCombo": 6,
+      "holds": 82
+     },
+     {
+      "seed": 50007,
+      "attack": 0,
+      "pieces": 68,
+      "survived": false,
+      "lines": 10,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 17
+     },
+     {
+      "seed": 50008,
+      "attack": 0,
+      "pieces": 65,
+      "survived": false,
+      "lines": 9,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 12
+     },
+     {
+      "seed": 50009,
+      "attack": 0,
+      "pieces": 76,
+      "survived": false,
+      "lines": 14,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 18
+     },
+     {
+      "seed": 50010,
+      "attack": 13,
+      "pieces": 247,
+      "survived": false,
+      "lines": 82,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 73
+     },
+     {
+      "seed": 50011,
+      "attack": 11,
+      "pieces": 151,
+      "survived": false,
+      "lines": 44,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 55
+     },
+     {
+      "seed": 50012,
+      "attack": 4,
+      "pieces": 108,
+      "survived": false,
+      "lines": 27,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 42
+     },
+     {
+      "seed": 50013,
+      "attack": 7,
+      "pieces": 195,
+      "survived": false,
+      "lines": 61,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 63
+     },
+     {
+      "seed": 50014,
+      "attack": 7,
+      "pieces": 174,
+      "survived": false,
+      "lines": 53,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 56
+     },
+     {
+      "seed": 50015,
+      "attack": 10,
+      "pieces": 169,
+      "survived": false,
+      "lines": 51,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 6,
+      "holds": 48
+     },
+     {
+      "seed": 50016,
+      "attack": 4,
+      "pieces": 126,
+      "survived": false,
+      "lines": 34,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 58
+     },
+     {
+      "seed": 50017,
+      "attack": 5,
+      "pieces": 161,
+      "survived": false,
+      "lines": 48,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 42
+     },
+     {
+      "seed": 50018,
+      "attack": 6,
+      "pieces": 98,
+      "survived": false,
+      "lines": 22,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 28
+     },
+     {
+      "seed": 50019,
+      "attack": 11,
+      "pieces": 206,
+      "survived": false,
+      "lines": 65,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 62
+     }
+    ],
+    "cap": 1000,
+    "injector": null,
+    "ms": 250160
+   },
+   "ms": 3062518
+  },
+  {
+   "round": 3,
+   "trainDecisions": 13545,
+   "valDecisions": 2619,
+   "dagger": {
+    "games": 30,
+    "decisions": 2074,
+    "deadGames": 30,
+    "decisionsMedian": 63,
+    "agreeWithTeacher": 0.29315332690453233,
+    "attackPer1000": 45.323,
+    "garbageReceived": 246,
+    "merged": {
+     "train": 1905,
+     "val": 169,
+     "trainGames": 27,
+     "valGames": 3
+    },
+    "ms": 222096
+   },
+   "train": {
+    "history": [
+     {
+      "epoch": 1,
+      "train": 0.4390505600870715,
+      "val": 0.49749545706791404,
+      "lr": 0.0004522542485937369,
+      "gradNorm": 0.9622587160560429,
+      "clippedFrac": 0,
+      "ms": 547367
+     },
+     {
+      "epoch": 2,
+      "train": 0.4215192821117231,
+      "val": 0.5038807232053578,
+      "lr": 0.00032725424859373687,
+      "gradNorm": 0.9851006849298731,
+      "clippedFrac": 0,
+      "ms": 535750
+     },
+     {
+      "epoch": 3,
+      "train": 0.3981373187701309,
+      "val": 0.5022622103668289,
+      "lr": 0.00017274575140626317,
+      "gradNorm": 1.0510287371221452,
+      "clippedFrac": 0,
+      "ms": 565633
+     }
+    ],
+    "best": {
+     "epoch": 1,
+     "valLoss": 0.49749545706791404
+    },
+    "epochs": 3,
+    "steps": 1272,
+    "stepsPerEpoch": 424,
+    "clippedFrac": 0,
+    "ms": 1648758,
+    "loss": "pairwise",
+    "K": 8,
+    "batch": 32,
+    "lr": 0.0005,
+    "maxEpochs": 5,
+    "patience": 2
+   },
+   "test": {
+    "decisions": 1204,
+    "candidates": 51296,
+    "candidatesPerDecision": 42.604651162790695,
+    "tau": 0.17014300035340513,
+    "tauCI": [
+     0.16041054364597623,
+     0.18025072574973275
+    ],
+    "top1": 0.37790697674418605,
+    "top1CI": [
+     0.3488372093023256,
+     0.4069767441860465
+    ],
+    "regret": 49.6968189368771,
+    "chance": {
+     "decisions": 1204,
+     "candidates": 51296,
+     "candidatesPerDecision": 42.604651162790695,
+     "tau": 0.0005887950105951737,
+     "tauCI": [
+      -0.006187152021766774,
+      0.007588643199083794
+     ],
+     "top1": 0.03239202657807309,
+     "top1CI": [
+      0.022425249169435217,
+      0.04235880398671096
+     ],
+     "regret": 140.4245066445181
+    },
+    "ms": 105958
+   },
+   "play": {
+    "games": 20,
+    "attackMedian": 4.5,
+    "attackQuartiles": [
+     2,
+     4.5,
+     8
+    ],
+    "attackMean": 7.3,
+    "attackMedianCI": [
+     2.5,
+     7.5
+    ],
+    "attackPer1000": 45.797,
+    "survival": 0,
+    "survivalCI": [
+     0,
+     0
+    ],
+    "piecesMedian": 134,
+    "piecesMedianCI": [
+     111.5,
+     180.5
+    ],
+    "linesTotal": 940,
+    "linesPer1000": 294.856,
+    "tetrises": 0,
+    "tspins": 1,
+    "tetrisLineShare": 0,
+    "perfectClears": 0,
+    "maxCombo": 8,
+    "holds": 913,
+    "msPerPiece": 819.217,
+    "games_": [
+     {
+      "seed": 50000,
+      "attack": 6,
+      "pieces": 154,
+      "survived": false,
+      "lines": 45,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 49
+     },
+     {
+      "seed": 50001,
+      "attack": 4,
+      "pieces": 119,
+      "survived": false,
+      "lines": 31,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 31
+     },
+     {
+      "seed": 50002,
+      "attack": 13,
+      "pieces": 266,
+      "survived": false,
+      "lines": 90,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 73
+     },
+     {
+      "seed": 50003,
+      "attack": 4,
+      "pieces": 163,
+      "survived": false,
+      "lines": 48,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 47
+     },
+     {
+      "seed": 50004,
+      "attack": 1,
+      "pieces": 87,
+      "survived": false,
+      "lines": 18,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 31
+     },
+     {
+      "seed": 50005,
+      "attack": 41,
+      "pieces": 387,
+      "survived": false,
+      "lines": 138,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 8,
+      "holds": 105
+     },
+     {
+      "seed": 50006,
+      "attack": 4,
+      "pieces": 133,
+      "survived": false,
+      "lines": 36,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 46
+     },
+     {
+      "seed": 50007,
+      "attack": 16,
+      "pieces": 198,
+      "survived": false,
+      "lines": 62,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 7,
+      "holds": 53
+     },
+     {
+      "seed": 50008,
+      "attack": 0,
+      "pieces": 63,
+      "survived": false,
+      "lines": 9,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 19
+     },
+     {
+      "seed": 50009,
+      "attack": 2,
+      "pieces": 109,
+      "survived": false,
+      "lines": 27,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 16
+     },
+     {
+      "seed": 50010,
+      "attack": 8,
+      "pieces": 250,
+      "survived": false,
+      "lines": 83,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 73
+     },
+     {
+      "seed": 50011,
+      "attack": 2,
+      "pieces": 94,
+      "survived": false,
+      "lines": 21,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 23
+     },
+     {
+      "seed": 50012,
+      "attack": 6,
+      "pieces": 135,
+      "survived": false,
+      "lines": 37,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 3,
+      "holds": 24
+     },
+     {
+      "seed": 50013,
+      "attack": 7,
+      "pieces": 237,
+      "survived": false,
+      "lines": 78,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 93
+     },
+     {
+      "seed": 50014,
+      "attack": 1,
+      "pieces": 102,
+      "survived": false,
+      "lines": 24,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 20
+     },
+     {
+      "seed": 50015,
+      "attack": 3,
+      "pieces": 92,
+      "survived": false,
+      "lines": 21,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 4,
+      "holds": 29
+     },
+     {
+      "seed": 50016,
+      "attack": 14,
+      "pieces": 218,
+      "survived": false,
+      "lines": 70,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 6,
+      "holds": 86
+     },
+     {
+      "seed": 50017,
+      "attack": 8,
+      "pieces": 145,
+      "survived": false,
+      "lines": 41,
+      "tetris": 0,
+      "tspin": 1,
+      "maxCombo": 4,
+      "holds": 47
+     },
+     {
+      "seed": 50018,
+      "attack": 5,
+      "pieces": 122,
+      "survived": false,
+      "lines": 32,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 5,
+      "holds": 26
+     },
+     {
+      "seed": 50019,
+      "attack": 1,
+      "pieces": 114,
+      "survived": false,
+      "lines": 29,
+      "tetris": 0,
+      "tspin": 0,
+      "maxCombo": 2,
+      "holds": 22
+     }
+    ],
+    "cap": 1000,
+    "injector": null,
+    "ms": 274112
+   },
+   "ms": 2251201
+  }
+ ],
+ "improvement": {
+  "top1": 0.015780730897009987,
+  "tau": -0.0017104294077784354,
+  "attackMedian": 1.5,
+  "survival": 0,
+  "perRound": [
+   {
+    "round": 0,
+    "top1": 0.36212624584717606,
+    "tau": 0.17185342976118356,
+    "attackMedian": 3,
+    "survival": 0,
+    "onPolicyAgreement": null
+   },
+   {
+    "round": 1,
+    "top1": 0.38787375415282394,
+    "tau": 0.17181831377055864,
+    "attackMedian": 7.5,
+    "survival": 0,
+    "onPolicyAgreement": 0.24161400097228974
+   },
+   {
+    "round": 2,
+    "top1": 0.37375415282392027,
+    "tau": 0.16790439503449486,
+    "attackMedian": 5.5,
+    "survival": 0,
+    "onPolicyAgreement": 0.2754549926217413
+   },
+   {
+    "round": 3,
+    "top1": 0.37790697674418605,
+    "tau": 0.17014300035340513,
+    "attackMedian": 4.5,
+    "survival": 0,
+    "onPolicyAgreement": 0.29315332690453233
+   }
+  ]
+ },
+ "weights": {
+  "overall": {
+   "edges": 459168,
+   "meanAbsDelta": 0.017093672246079404,
+   "medianAbsDelta": 0.011172074153093764,
+   "p90AbsDelta": 0.03906944396462451,
+   "p99AbsDelta": 0.08539594762956348,
+   "maxAbsDelta": 0.31340767522790847,
+   "meanRelDelta": 3.8425514162073546,
+   "inhibitoryFrac": 0.3888206495226148,
+   "signFlipFrac": 0.3888206495226148,
+   "corr": 0.8250808940874451,
+   "meanInit": 0.01723916196817889,
+   "meanFinal": 0.013141007811535405
+  },
+  "norms": {
+   "init": 26.870205722216166,
+   "final": 31.025923365087323
+  },
+  "byBlock": {
+   "hidden>hidden": {
+    "edges": 378255,
+    "meanAbsDelta": 0.015075514591936219,
+    "medianAbsDelta": 0.010310411157309591,
+    "p90AbsDelta": 0.03421005440802907,
+    "p99AbsDelta": 0.06666180167891952,
+    "maxAbsDelta": 0.31340767522790847,
+    "meanRelDelta": 3.7274765315161575,
+    "inhibitoryFrac": 0.4068525201253123,
+    "signFlipFrac": 0.4068525201253123,
+    "corr": 0.7261531127258749,
+    "meanInit": 0.014057686365045726,
+    "meanFinal": 0.008625386531360872
+   },
+   "hidden>input": {
+    "edges": 13625,
+    "meanAbsDelta": 0.04409934276165171,
+    "medianAbsDelta": 0.033516166594845846,
+    "p90AbsDelta": 0.09592395204398661,
+    "p99AbsDelta": 0.18795793346256912,
+    "maxAbsDelta": 0.2994834903965304,
+    "meanRelDelta": 0.9973930640476402,
+    "inhibitoryFrac": 0.17423853211009174,
+    "signFlipFrac": 0.17423853211009174,
+    "corr": 0.9101788930455004,
+    "meanInit": 0.1048868769932409,
+    "meanFinal": 0.10037961431606289
+   },
+   "hidden>output": {
+    "edges": 4647,
+    "meanAbsDelta": 0.013844758632662678,
+    "medianAbsDelta": 0.010119462428743032,
+    "p90AbsDelta": 0.030833779117217987,
+    "p99AbsDelta": 0.06163640249556781,
+    "maxAbsDelta": 0.14273038342154767,
+    "meanRelDelta": 5.095888719547806,
+    "inhibitoryFrac": 0.38304282332687756,
+    "signFlipFrac": 0.38304282332687756,
+    "corr": 0.9563516481160348,
+    "meanInit": 0.01947604443393944,
+    "meanFinal": 0.015026931707475454
+   },
+   "input>hidden": {
+    "edges": 39164,
+    "meanAbsDelta": 0.018103920975366287,
+    "medianAbsDelta": 0.012690954771239467,
+    "p90AbsDelta": 0.04062316210857753,
+    "p99AbsDelta": 0.08906080183556762,
+    "maxAbsDelta": 0.22863910498963846,
+    "meanRelDelta": 6.791116108515198,
+    "inhibitoryFrac": 0.4003166173016035,
+    "signFlipFrac": 0.4003166173016035,
+    "corr": 0.25906178154700454,
+    "meanInit": 0.0063395576553060195,
+    "meanFinal": 0.007119686243022777
+   },
+   "input>input": {
+    "edges": 20631,
+    "meanAbsDelta": 0.034755118544313054,
+    "medianAbsDelta": 0.026254794050583535,
+    "p90AbsDelta": 0.07544361521372374,
+    "p99AbsDelta": 0.14775738148428752,
+    "maxAbsDelta": 0.3070493439795943,
+    "meanRelDelta": 1.3749761518106323,
+    "inhibitoryFrac": 0.1772090543357084,
+    "signFlipFrac": 0.1772090543357084,
+    "corr": 0.732178357810078,
+    "meanInit": 0.03910148693655166,
+    "meanFinal": 0.0501694405099597
+   },
+   "input>output": {
+    "edges": 1531,
+    "meanAbsDelta": 0.018749158925795265,
+    "medianAbsDelta": 0.01299802142032706,
+    "p90AbsDelta": 0.04173255724775284,
+    "p99AbsDelta": 0.08983949804215736,
+    "maxAbsDelta": 0.12874101153322767,
+    "meanRelDelta": 9.28073924368677,
+    "inhibitoryFrac": 0.3638145003265839,
+    "signFlipFrac": 0.3638145003265839,
+    "corr": 0.22458348272487358,
+    "meanInit": 0.004476923534447664,
+    "meanFinal": 0.009058624533926153
+   },
+   "output>hidden": {
+    "edges": 1205,
+    "meanAbsDelta": 0.020124563712928152,
+    "medianAbsDelta": 0.015406835686308686,
+    "p90AbsDelta": 0.04223840265126452,
+    "p99AbsDelta": 0.09065825675913,
+    "maxAbsDelta": 0.1951485647188994,
+    "meanRelDelta": 6.743791936449976,
+    "inhibitoryFrac": 0.46887966804979253,
+    "signFlipFrac": 0.46887966804979253,
+    "corr": 0.446422362293755,
+    "meanInit": 0.010962879078773703,
+    "meanFinal": 0.0023561467056390775
+   },
+   "output>input": {
+    "edges": 21,
+    "meanAbsDelta": 0.03680080663758715,
+    "medianAbsDelta": 0.028681521587941065,
+    "p90AbsDelta": 0.07412324381481866,
+    "p99AbsDelta": 0.10529471093715749,
+    "maxAbsDelta": 0.10529471093715749,
+    "meanRelDelta": 2.4281386041152277,
+    "inhibitoryFrac": 0.38095238095238093,
+    "signFlipFrac": 0.38095238095238093,
+    "corr": 0.9420181979769527,
+    "meanInit": 0.04611543265762808,
+    "meanFinal": 0.04418548680904882
+   },
+   "output>output": {
+    "edges": 89,
+    "meanAbsDelta": 0.01691794522942747,
+    "medianAbsDelta": 0.0124967948357656,
+    "p90AbsDelta": 0.037175295572635714,
+    "p99AbsDelta": 0.06645899403459626,
+    "maxAbsDelta": 0.06645899403459626,
+    "meanRelDelta": 5.050130707273942,
+    "inhibitoryFrac": 0.24719101123595505,
+    "signFlipFrac": 0.24719101123595505,
+    "corr": 0.9059814584482448,
+    "meanInit": 0.030049581681977713,
+    "meanFinal": 0.026015397066369947
+   }
+  },
+  "byPostRoi": [
+   {
+    "roi": "SMP(R)",
+    "edges": 59504,
+    "meanAbsDelta": 0.013968884271869708,
+    "medianAbsDelta": 0.010803756165539339,
+    "p90AbsDelta": 0.029240768905176025,
+    "p99AbsDelta": 0.06102050879381,
+    "maxAbsDelta": 0.12495138617586043,
+    "meanRelDelta": 4.160904837870424,
+    "inhibitoryFrac": 0.4155014788921753,
+    "signFlipFrac": 0.4155014788921753,
+    "corr": 0.6915235973443384,
+    "meanInit": 0.011364416268043345,
+    "meanFinal": 0.0074810298072737706
+   },
+   {
+    "roi": "PVLP(R)",
+    "edges": 50785,
+    "meanAbsDelta": 0.025121209103179405,
+    "medianAbsDelta": 0.01773733760986892,
+    "p90AbsDelta": 0.05603809307925462,
+    "p99AbsDelta": 0.11789091343637498,
+    "maxAbsDelta": 0.2753648982267905,
+    "meanRelDelta": 5.454529234900616,
+    "inhibitoryFrac": 0.3780053165304716,
+    "signFlipFrac": 0.3780053165304716,
+    "corr": 0.8271053279604175,
+    "meanInit": 0.025744634413583913,
+    "meanFinal": 0.02326834122681319
+   },
+   {
+    "roi": "FB",
+    "edges": 48972,
+    "meanAbsDelta": 0.025282316821912634,
+    "medianAbsDelta": 0.019687074430401543,
+    "p90AbsDelta": 0.05473964784990968,
+    "p99AbsDelta": 0.0746046116554882,
+    "maxAbsDelta": 0.12191086921595405,
+    "meanRelDelta": 5.183444583849826,
+    "inhibitoryFrac": 0.260516213346402,
+    "signFlipFrac": 0.260516213346402,
+    "corr": 0.529227123002301,
+    "meanInit": 0.010805737904742539,
+    "meanFinal": 0.022718825140009922
+   },
+   {
+    "roi": "AVLP(R)",
+    "edges": 42066,
+    "meanAbsDelta": 0.016094738561344094,
+    "medianAbsDelta": 0.012817376162838923,
+    "p90AbsDelta": 0.033944916582766445,
+    "p99AbsDelta": 0.06150451014857915,
+    "maxAbsDelta": 0.16211063068813067,
+    "meanRelDelta": 4.421130790682349,
+    "inhibitoryFrac": 0.46296296296296297,
+    "signFlipFrac": 0.46296296296296297,
+    "corr": 0.7165076304910065,
+    "meanInit": 0.01400653386065486,
+    "meanFinal": 0.004770708919039118
+   },
+   {
+    "roi": "gL(R)",
+    "edges": 35691,
+    "meanAbsDelta": 0.007553530530848614,
+    "medianAbsDelta": 0.007562848743654104,
+    "p90AbsDelta": 0.012284613226096273,
+    "p99AbsDelta": 0.028821165373290793,
+    "maxAbsDelta": 0.07879647210067697,
+    "meanRelDelta": 3.156929942750241,
+    "inhibitoryFrac": 0.41786444761984814,
+    "signFlipFrac": 0.41786444761984814,
+    "corr": 0.9672944472777142,
+    "meanInit": 0.015163000420646474,
+    "meanFinal": 0.008562315191839595
+   },
+   {
+    "roi": "b'L(R)",
+    "edges": 24367,
+    "meanAbsDelta": 0.0074746547210157565,
+    "medianAbsDelta": 0.006947287081151072,
+    "p90AbsDelta": 0.010667061186031099,
+    "p99AbsDelta": 0.02538368987295277,
+    "maxAbsDelta": 0.06260166769647513,
+    "meanRelDelta": 0.8938460228626911,
+    "inhibitoryFrac": 0.20884803217466244,
+    "signFlipFrac": 0.20884803217466244,
+    "corr": 0.9619397020670173,
+    "meanInit": 0.014779067602397836,
+    "meanFinal": 0.008003787967043905
+   },
+   {
+    "roi": "LAL(R)",
+    "edges": 20852,
+    "meanAbsDelta": 0.015046202362727542,
+    "medianAbsDelta": 0.011638269197643958,
+    "p90AbsDelta": 0.03162088650169573,
+    "p99AbsDelta": 0.06462546634844804,
+    "maxAbsDelta": 0.18550028271133145,
+    "meanRelDelta": 4.671323111495461,
+    "inhibitoryFrac": 0.4793784768847113,
+    "signFlipFrac": 0.4793784768847113,
+    "corr": 0.7894474072813228,
+    "meanInit": 0.012856823325197206,
+    "meanFinal": 0.0048619411114447075
+   },
+   {
+    "roi": "PLP(R)",
+    "edges": 20761,
+    "meanAbsDelta": 0.02111958569113106,
+    "medianAbsDelta": 0.015745243225063765,
+    "p90AbsDelta": 0.04427880390499838,
+    "p99AbsDelta": 0.1005742468847875,
+    "maxAbsDelta": 0.2969602740697387,
+    "meanRelDelta": 2.975346973429797,
+    "inhibitoryFrac": 0.38697557921102066,
+    "signFlipFrac": 0.38697557921102066,
+    "corr": 0.9048972259237154,
+    "meanInit": 0.025392703696706813,
+    "meanFinal": 0.020201798888172022
+   },
+   {
+    "roi": "AL(R)",
+    "edges": 18498,
+    "meanAbsDelta": 0.01034109646882459,
+    "medianAbsDelta": 0.010475535538304818,
+    "p90AbsDelta": 0.01800664316509869,
+    "p99AbsDelta": 0.03138914745273754,
+    "maxAbsDelta": 0.10248972962153263,
+    "meanRelDelta": 2.3521759225239594,
+    "inhibitoryFrac": 0.501513677154287,
+    "signFlipFrac": 0.501513677154287,
+    "corr": 0.902272127784263,
+    "meanInit": 0.01292467776155408,
+    "meanFinal": 0.0034502486958495468
+   },
+   {
+    "roi": "SLP(R)",
+    "edges": 17767,
+    "meanAbsDelta": 0.014321853572256736,
+    "medianAbsDelta": 0.012376561546055796,
+    "p90AbsDelta": 0.028541881281686436,
+    "p99AbsDelta": 0.047312222828591086,
+    "maxAbsDelta": 0.18483975688753412,
+    "meanRelDelta": 2.2769521770898997,
+    "inhibitoryFrac": 0.41644622052119096,
+    "signFlipFrac": 0.41644622052119096,
+    "corr": 0.8694670594594359,
+    "meanInit": 0.01897415293493412,
+    "meanFinal": 0.009182768806787311
+   },
+   {
+    "roi": "AOTU(R)",
+    "edges": 14585,
+    "meanAbsDelta": 0.03647629853969426,
+    "medianAbsDelta": 0.02616180275446682,
+    "p90AbsDelta": 0.08157253425149542,
+    "p99AbsDelta": 0.16988696755739324,
+    "maxAbsDelta": 0.3070493439795943,
+    "meanRelDelta": 6.913544309615035,
+    "inhibitoryFrac": 0.32170037709976,
+    "signFlipFrac": 0.32170037709976,
+    "corr": 0.7169645782650178,
+    "meanInit": 0.030383926091981706,
+    "meanFinal": 0.03229624747931479
+   },
+   {
+    "roi": "CRE(R)",
+    "edges": 13425,
+    "meanAbsDelta": 0.01107058539701428,
+    "medianAbsDelta": 0.008800315661565482,
+    "p90AbsDelta": 0.023153387361786945,
+    "p99AbsDelta": 0.04543858455503517,
+    "maxAbsDelta": 0.08120778991252948,
+    "meanRelDelta": 4.45954636595817,
+    "inhibitoryFrac": 0.424804469273743,
+    "signFlipFrac": 0.424804469273743,
+    "corr": 0.7747365292066917,
+    "meanInit": 0.01169854786302859,
+    "meanFinal": 0.005242448195465947
+   }
+  ],
+  "byPostRoiMostChanged": [
+   {
+    "roi": "AOTU(R)",
+    "edges": 14585,
+    "meanAbsDelta": 0.03647629853969426,
+    "medianAbsDelta": 0.02616180275446682,
+    "p90AbsDelta": 0.08157253425149542,
+    "p99AbsDelta": 0.16988696755739324,
+    "maxAbsDelta": 0.3070493439795943,
+    "meanRelDelta": 6.913544309615035,
+    "inhibitoryFrac": 0.32170037709976,
+    "signFlipFrac": 0.32170037709976,
+    "corr": 0.7169645782650178,
+    "meanInit": 0.030383926091981706,
+    "meanFinal": 0.03229624747931479
+   },
+   {
+    "roi": "LO(R)",
+    "edges": 10028,
+    "meanAbsDelta": 0.03447286927955846,
+    "medianAbsDelta": 0.02400226803065069,
+    "p90AbsDelta": 0.0778014817167266,
+    "p99AbsDelta": 0.1725185349777198,
+    "maxAbsDelta": 0.31340767522790847,
+    "meanRelDelta": 3.074283288947887,
+    "inhibitoryFrac": 0.29507379337854006,
+    "signFlipFrac": 0.29507379337854006,
+    "corr": 0.9202338361418785,
+    "meanInit": 0.058156843609013326,
+    "meanFinal": 0.05626733856787586
+   },
+   {
+    "roi": "FB",
+    "edges": 48972,
+    "meanAbsDelta": 0.025282316821912634,
+    "medianAbsDelta": 0.019687074430401543,
+    "p90AbsDelta": 0.05473964784990968,
+    "p99AbsDelta": 0.0746046116554882,
+    "maxAbsDelta": 0.12191086921595405,
+    "meanRelDelta": 5.183444583849826,
+    "inhibitoryFrac": 0.260516213346402,
+    "signFlipFrac": 0.260516213346402,
+    "corr": 0.529227123002301,
+    "meanInit": 0.010805737904742539,
+    "meanFinal": 0.022718825140009922
+   },
+   {
+    "roi": "PVLP(R)",
+    "edges": 50785,
+    "meanAbsDelta": 0.025121209103179405,
+    "medianAbsDelta": 0.01773733760986892,
+    "p90AbsDelta": 0.05603809307925462,
+    "p99AbsDelta": 0.11789091343637498,
+    "maxAbsDelta": 0.2753648982267905,
+    "meanRelDelta": 5.454529234900616,
+    "inhibitoryFrac": 0.3780053165304716,
+    "signFlipFrac": 0.3780053165304716,
+    "corr": 0.8271053279604175,
+    "meanInit": 0.025744634413583913,
+    "meanFinal": 0.02326834122681319
+   },
+   {
+    "roi": "SAD",
+    "edges": 517,
+    "meanAbsDelta": 0.02271082248913064,
+    "medianAbsDelta": 0.017734440003491052,
+    "p90AbsDelta": 0.0472271236409781,
+    "p99AbsDelta": 0.07928984757202248,
+    "maxAbsDelta": 0.18013508488929136,
+    "meanRelDelta": 1.9229638829470324,
+    "inhibitoryFrac": 0.3539651837524178,
+    "signFlipFrac": 0.3539651837524178,
+    "corr": 0.8753762728424103,
+    "meanInit": 0.0328931129623344,
+    "meanFinal": 0.0202244208574778
+   },
+   {
+    "roi": "WED(R)",
+    "edges": 1659,
+    "meanAbsDelta": 0.022218056754279177,
+    "medianAbsDelta": 0.01977402767242814,
+    "p90AbsDelta": 0.04299256147070067,
+    "p99AbsDelta": 0.07045314160127138,
+    "maxAbsDelta": 0.14223176206022903,
+    "meanRelDelta": 1.3899805627573194,
+    "inhibitoryFrac": 0.33815551537070526,
+    "signFlipFrac": 0.33815551537070526,
+    "corr": 0.9166397631053703,
+    "meanInit": 0.039193456763438224,
+    "meanFinal": 0.022718455627972502
+   },
+   {
+    "roi": "PLP(R)",
+    "edges": 20761,
+    "meanAbsDelta": 0.02111958569113106,
+    "medianAbsDelta": 0.015745243225063765,
+    "p90AbsDelta": 0.04427880390499838,
+    "p99AbsDelta": 0.1005742468847875,
+    "maxAbsDelta": 0.2969602740697387,
+    "meanRelDelta": 2.975346973429797,
+    "inhibitoryFrac": 0.38697557921102066,
+    "signFlipFrac": 0.38697557921102066,
+    "corr": 0.9048972259237154,
+    "meanInit": 0.025392703696706813,
+    "meanFinal": 0.020201798888172022
+   },
+   {
+    "roi": "IPS(R)",
+    "edges": 703,
+    "meanAbsDelta": 0.018140982399027155,
+    "medianAbsDelta": 0.014492667317364843,
+    "p90AbsDelta": 0.03693015298978724,
+    "p99AbsDelta": 0.059461345010487415,
+    "maxAbsDelta": 0.08116512829304547,
+    "meanRelDelta": 2.028509790450383,
+    "inhibitoryFrac": 0.39829302987197723,
+    "signFlipFrac": 0.39829302987197723,
+    "corr": 0.9869894074533277,
+    "meanInit": 0.04553457123662119,
+    "meanFinal": 0.03176428495077876
+   },
+   {
+    "roi": "SPS(R)",
+    "edges": 7432,
+    "meanAbsDelta": 0.017786655293530185,
+    "medianAbsDelta": 0.014065420821750423,
+    "p90AbsDelta": 0.03753402768940991,
+    "p99AbsDelta": 0.06906789658436638,
+    "maxAbsDelta": 0.1258308194335277,
+    "meanRelDelta": 3.0020264851576592,
+    "inhibitoryFrac": 0.4473896663078579,
+    "signFlipFrac": 0.4473896663078579,
+    "corr": 0.843939963808364,
+    "meanInit": 0.018574621963929464,
+    "meanFinal": 0.008842636323710186
+   },
+   {
+    "roi": "IB",
+    "edges": 8949,
+    "meanAbsDelta": 0.01656314706165859,
+    "medianAbsDelta": 0.013078440927706974,
+    "p90AbsDelta": 0.034624020480120275,
+    "p99AbsDelta": 0.06584351871687083,
+    "maxAbsDelta": 0.1996524552825055,
+    "meanRelDelta": 4.646502348639795,
+    "inhibitoryFrac": 0.44753603754609456,
+    "signFlipFrac": 0.44753603754609456,
+    "corr": 0.7285955966958384,
+    "meanInit": 0.014643449229292865,
+    "meanFinal": 0.006188285676944397
+   },
+   {
+    "roi": "VES(R)",
+    "edges": 3766,
+    "meanAbsDelta": 0.016322839605898518,
+    "medianAbsDelta": 0.013603505168640014,
+    "p90AbsDelta": 0.0334281646722593,
+    "p99AbsDelta": 0.060201555634496466,
+    "maxAbsDelta": 0.10941472160573895,
+    "meanRelDelta": 3.299811043552989,
+    "inhibitoryFrac": 0.49123738714816784,
+    "signFlipFrac": 0.49123738714816784,
+    "corr": 0.8683525426867185,
+    "meanInit": 0.017796765797730506,
+    "meanFinal": 0.007130255914290883
+   },
+   {
+    "roi": "AVLP(R)",
+    "edges": 42066,
+    "meanAbsDelta": 0.016094738561344094,
+    "medianAbsDelta": 0.012817376162838923,
+    "p90AbsDelta": 0.033944916582766445,
+    "p99AbsDelta": 0.06150451014857915,
+    "maxAbsDelta": 0.16211063068813067,
+    "meanRelDelta": 4.421130790682349,
+    "inhibitoryFrac": 0.46296296296296297,
+    "signFlipFrac": 0.46296296296296297,
+    "corr": 0.7165076304910065,
+    "meanInit": 0.01400653386065486,
+    "meanFinal": 0.004770708919039118
+   }
+  ],
+  "byPreRoiMostChanged": [
+   {
+    "roi": "AOTU(R)",
+    "edges": 14588,
+    "meanAbsDelta": 0.03409421660833932,
+    "medianAbsDelta": 0.022913097707079614,
+    "p90AbsDelta": 0.07852858225111425,
+    "p99AbsDelta": 0.17202364762648786,
+    "maxAbsDelta": 0.31340767522790847,
+    "meanRelDelta": 5.883681044318786,
+    "inhibitoryFrac": 0.2910611461475185,
+    "signFlipFrac": 0.2910611461475185,
+    "corr": 0.7009744149525283,
+    "meanInit": 0.028779269989775244,
+    "meanFinal": 0.032894839603599325
+   },
+   {
+    "roi": "SAD",
+    "edges": 699,
+    "meanAbsDelta": 0.032896795720324494,
+    "medianAbsDelta": 0.023452518911556593,
+    "p90AbsDelta": 0.0667654416416027,
+    "p99AbsDelta": 0.19591225276637356,
+    "maxAbsDelta": 0.2199068296391504,
+    "meanRelDelta": 5.360786051901779,
+    "inhibitoryFrac": 0.5593705293276109,
+    "signFlipFrac": 0.5593705293276109,
+    "corr": 0.5472495214758397,
+    "meanInit": 0.02260903665644249,
+    "meanFinal": -0.003745538621258108
+   },
+   {
+    "roi": "FB",
+    "edges": 43793,
+    "meanAbsDelta": 0.02613877554395771,
+    "medianAbsDelta": 0.019955121205722643,
+    "p90AbsDelta": 0.05660602007948061,
+    "p99AbsDelta": 0.07777889022534065,
+    "maxAbsDelta": 0.1698084551271199,
+    "meanRelDelta": 5.687997323821219,
+    "inhibitoryFrac": 0.270043157582262,
+    "signFlipFrac": 0.270043157582262,
+    "corr": 0.5166238013090023,
+    "meanInit": 0.011044868356226787,
+    "meanFinal": 0.022699753629856635
+   },
+   {
+    "roi": "LO(R)",
+    "edges": 16568,
+    "meanAbsDelta": 0.025018856697822087,
+    "medianAbsDelta": 0.016398194505834615,
+    "p90AbsDelta": 0.05701030820651155,
+    "p99AbsDelta": 0.13739279323768958,
+    "maxAbsDelta": 0.2994834903965304,
+    "meanRelDelta": 4.340525796226377,
+    "inhibitoryFrac": 0.3482013520038629,
+    "signFlipFrac": 0.3482013520038629,
+    "corr": 0.8998780208507686,
+    "meanInit": 0.029590203195380676,
+    "meanFinal": 0.027950301264335453
+   },
+   {
+    "roi": "PVLP(R)",
+    "edges": 51929,
+    "meanAbsDelta": 0.023472610423078286,
+    "medianAbsDelta": 0.016379260975184884,
+    "p90AbsDelta": 0.05262499472696123,
+    "p99AbsDelta": 0.11255058354428835,
+    "maxAbsDelta": 0.2753648982267905,
+    "meanRelDelta": 4.870762628804715,
+    "inhibitoryFrac": 0.37210421922239983,
+    "signFlipFrac": 0.37210421922239983,
+    "corr": 0.8360682307254965,
+    "meanInit": 0.024953120829449144,
+    "meanFinal": 0.022795981801397597
+   },
+   {
+    "roi": "WED(R)",
+    "edges": 2713,
+    "meanAbsDelta": 0.022936758591308396,
+    "medianAbsDelta": 0.019579283919574763,
+    "p90AbsDelta": 0.04440926066005318,
+    "p99AbsDelta": 0.08623951677873237,
+    "maxAbsDelta": 0.21737889920915826,
+    "meanRelDelta": 4.762597008961626,
+    "inhibitoryFrac": 0.5418356063398452,
+    "signFlipFrac": 0.5418356063398452,
+    "corr": 0.8950345894087992,
+    "meanInit": 0.024683927080210364,
+    "meanFinal": 0.0062751406090798155
+   },
+   {
+    "roi": "IPS(R)",
+    "edges": 527,
+    "meanAbsDelta": 0.02219494480315904,
+    "medianAbsDelta": 0.019828224995855907,
+    "p90AbsDelta": 0.04466866628718292,
+    "p99AbsDelta": 0.07161537355898265,
+    "maxAbsDelta": 0.09601224097197218,
+    "meanRelDelta": 3.201739170236279,
+    "inhibitoryFrac": 0.4686907020872865,
+    "signFlipFrac": 0.4686907020872865,
+    "corr": 0.9859592945816733,
+    "meanInit": 0.04777890356674036,
+    "meanFinal": 0.02942508384213916
+   },
+   {
+    "roi": "SPS(R)",
+    "edges": 4908,
+    "meanAbsDelta": 0.020249460382116655,
+    "medianAbsDelta": 0.0154253291737141,
+    "p90AbsDelta": 0.042335526634976556,
+    "p99AbsDelta": 0.09176837012446899,
+    "maxAbsDelta": 0.199170922976649,
+    "meanRelDelta": 4.844973273445363,
+    "inhibitoryFrac": 0.4906275468622657,
+    "signFlipFrac": 0.4906275468622657,
+    "corr": 0.8715985754231744,
+    "meanInit": 0.021779297390288787,
+    "meanFinal": 0.008435782764897764
+   },
+   {
+    "roi": "PLP(R)",
+    "edges": 24629,
+    "meanAbsDelta": 0.019965062090409512,
+    "medianAbsDelta": 0.014872164729883631,
+    "p90AbsDelta": 0.04160116491243697,
+    "p99AbsDelta": 0.09742496376188363,
+    "maxAbsDelta": 0.2969602740697387,
+    "meanRelDelta": 3.271795931673074,
+    "inhibitoryFrac": 0.3899874132120671,
+    "signFlipFrac": 0.3899874132120671,
+    "corr": 0.9110336612332722,
+    "meanInit": 0.025392552827973824,
+    "meanFinal": 0.019489547255345012
+   },
+   {
+    "roi": "IB",
+    "edges": 7489,
+    "meanAbsDelta": 0.018930021200744728,
+    "medianAbsDelta": 0.014414705059925105,
+    "p90AbsDelta": 0.03790037618394184,
+    "p99AbsDelta": 0.0970690218044326,
+    "maxAbsDelta": 0.22310267239084902,
+    "meanRelDelta": 3.3526695431878486,
+    "inhibitoryFrac": 0.4507944985979436,
+    "signFlipFrac": 0.4507944985979436,
+    "corr": 0.9214793966986403,
+    "meanInit": 0.025389896955097652,
+    "meanFinal": 0.016719649328759828
+   },
+   {
+    "roi": "AVLP(R)",
+    "edges": 39792,
+    "meanAbsDelta": 0.017359982239062505,
+    "medianAbsDelta": 0.013691835098252007,
+    "p90AbsDelta": 0.03645896197912189,
+    "p99AbsDelta": 0.0685177009878427,
+    "maxAbsDelta": 0.2164881469711686,
+    "meanRelDelta": 4.120677839319949,
+    "inhibitoryFrac": 0.4783122235625251,
+    "signFlipFrac": 0.4783122235625251,
+    "corr": 0.7969351514513856,
+    "meanInit": 0.016018318896564875,
+    "meanFinal": 0.005453543343527487
+   },
+   {
+    "roi": "LAL(L)",
+    "edges": 1655,
+    "meanAbsDelta": 0.016574649518630885,
+    "medianAbsDelta": 0.012834602541440346,
+    "p90AbsDelta": 0.03513204283680801,
+    "p99AbsDelta": 0.06618330979421541,
+    "maxAbsDelta": 0.16421548092631227,
+    "meanRelDelta": 4.137990216428244,
+    "inhibitoryFrac": 0.4489425981873112,
+    "signFlipFrac": 0.4489425981873112,
+    "corr": 0.8398743746854382,
+    "meanInit": 0.01829363795716531,
+    "meanFinal": 0.0086086453297441
+   }
+  ],
+  "kc": {
+   "kcEdges": {
+    "edges": 63001,
+    "meanAbsDelta": 0.006755934825741259,
+    "medianAbsDelta": 0.006858652866841908,
+    "p90AbsDelta": 0.010265285307928262,
+    "p99AbsDelta": 0.023057967638484722,
+    "maxAbsDelta": 0.07440931790489104,
+    "meanRelDelta": 1.4908502255671905,
+    "inhibitoryFrac": 0.32339169219536196,
+    "signFlipFrac": 0.32339169219536196,
+    "corr": 0.9720031596161066,
+    "meanInit": 0.014213185461055577,
+    "meanFinal": 0.008258318545328009
+   },
+   "otherEdges": {
+    "edges": 396167,
+    "meanAbsDelta": 0.018737645104037377,
+    "medianAbsDelta": 0.01319044372172048,
+    "p90AbsDelta": 0.04195508472341721,
+    "p99AbsDelta": 0.08952136595453247,
+    "maxAbsDelta": 0.31340767522790847,
+    "meanRelDelta": 4.2165339203318934,
+    "inhibitoryFrac": 0.3992255791118392,
+    "signFlipFrac": 0.3992255791118392,
+    "corr": 0.8189627659256024,
+    "meanInit": 0.017720372028394292,
+    "meanFinal": 0.013917484162317592
+   }
+  },
+  "topPostNeurons": [
+   {
+    "index": 6394,
+    "type": "PVLP136",
+    "layer": "hidden",
+    "roi": "PVLP(R)",
+    "sumAbsDelta": 19.38881474883234,
+    "inDegree": 511
+   },
+   {
+    "index": 6390,
+    "type": "PVLP132",
+    "layer": "hidden",
+    "roi": "PVLP(R)",
+    "sumAbsDelta": 18.92043206723887,
+    "inDegree": 632
+   },
+   {
+    "index": 7455,
+    "type": "TuTuA",
+    "layer": "hidden",
+    "roi": "AOTU(R)",
+    "sumAbsDelta": 16.46801327081409,
+    "inDegree": 401
+   },
+   {
+    "index": 7006,
+    "type": "SMP156",
+    "layer": "hidden",
+    "roi": "SMP(R)",
+    "sumAbsDelta": 15.169561427487219,
+    "inDegree": 246
+   },
+   {
+    "index": 6391,
+    "type": "PVLP132",
+    "layer": "hidden",
+    "roi": "PVLP(R)",
+    "sumAbsDelta": 13.831534857647677,
+    "inDegree": 625
+   },
+   {
+    "index": 2519,
+    "type": "AVLP080",
+    "layer": "hidden",
+    "roi": "AVLP(R)",
+    "sumAbsDelta": 12.905423012201675,
+    "inDegree": 506
+   },
+   {
+    "index": 6868,
+    "type": "SMP081",
+    "layer": "hidden",
+    "roi": "SMP(R)",
+    "sumAbsDelta": 12.412919434484396,
+    "inDegree": 421
+   },
+   {
+    "index": 5524,
+    "type": "LT56",
+    "layer": "hidden",
+    "roi": "LO(R)",
+    "sumAbsDelta": 12.20343489030619,
+    "inDegree": 319
+   },
+   {
+    "index": 3388,
+    "type": "CRE040",
+    "layer": "hidden",
+    "roi": "CRE(L)",
+    "sumAbsDelta": 12.186739500591761,
+    "inDegree": 241
+   },
+   {
+    "index": 6408,
+    "type": "PVLP151",
+    "layer": "hidden",
+    "roi": "PVLP(R)",
+    "sumAbsDelta": 12.08189016616364,
+    "inDegree": 521
+   }
+  ]
+ },
+ "inputWeights": {
+  "board": {
+   "edges": 463200,
+   "meanAbsDelta": 0.029729531104688713,
+   "medianAbsDelta": 0.020247826323225127,
+   "p90AbsDelta": 0.06656496226787567,
+   "p99AbsDelta": 0.16137309857351845,
+   "maxAbsDelta": 0.47457460203183494,
+   "meanRelDelta": 1291.2942108257728,
+   "relEdges": 305184,
+   "inhibitoryFrac": 0.35442789291882554,
+   "signFlipFrac": 0.35442789291882554,
+   "corr": 0.4847697792623378,
+   "meanInit": 0.0049999999999993305,
+   "meanFinal": 0.015991761449078733
+  },
+  "other": {
+   "edges": 129696,
+   "meanAbsDelta": 0.029655043694144935,
+   "medianAbsDelta": 0.02139502798580961,
+   "p90AbsDelta": 0.0662125131568084,
+   "p99AbsDelta": 0.13574019083402253,
+   "maxAbsDelta": 0.4115157346126779,
+   "meanRelDelta": 3.598635269918366,
+   "relEdges": 129694,
+   "inhibitoryFrac": 0.47572014557118186,
+   "signFlipFrac": 0.13730569948186527,
+   "corr": 0.8196855624967215,
+   "meanInit": -0.00010640233260344529,
+   "meanFinal": 0.005709817470771648
+  }
+ },
+ "gate": {
+  "criteria": {
+   "top1": 0.35,
+   "attackMedian": 150,
+   "survival": 0.7
+  },
+  "measured": {
+   "top1": 0.37790697674418605,
+   "top1CI": [
+    0.3488372093023256,
+    0.4069767441860465
+   ],
+   "attackMedian": 4.5,
+   "attackMedianCI": [
+    2.5,
+    7.5
+   ],
+   "survival": 0,
+   "survivalCI": [
+    0,
+    0
+   ]
+  },
+  "passed": {
+   "top1": true,
+   "attackMedian": false,
+   "survival": false
+  },
+  "all": false
+ },
+ "note": "커넥톰에서 오는 것은 배선 구조(마스크)뿐이며 가중치는 학습됐다. 평가는 전체 후보 (K=8 은 학습 부분집합)."
+}
