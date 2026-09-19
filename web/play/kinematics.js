@@ -26,15 +26,27 @@ export const DEFAULT_TUNING = {
 export const NO_KEYS = { left: false, right: false, softDrop: false, hardDrop: false, cw: false, ccw: false, flip: false, hold: false };
 
 // 새 조각. 스폰이 막히면 null (이 엔진에서는 버퍼 스폰이라 사실상 일어나지 않는다 — 탑아웃은 고정 시 lockOut 으로 잡는다).
-export function spawnState(board, piece) {
+//
+// carry: 직전 조각에서 이어받을 입력 상태.
+//   prev   — 지금 눌려 있는 키. 이걸 이어받지 않으면 스페이스를 누르고 있는 동안 새 조각마다 "새로 눌렸다"로
+//            판정돼 조각이 연달아 하드드롭된다 (회전·홀드도 마찬가지). 엣지 판정은 조각이 아니라 키의 성질이다.
+//   dasDir/dasMs/repeatMs — 좌우를 누른 채 조각이 바뀌어도 자동 반복이 끊기지 않게 이어받는다.
+export function spawnState(board, piece, carry = null) {
   const s = spawnPiece(board, piece);
   if (!s) return null;
   return {
     piece, rot: s.rot, bx: s.bx, by: s.by,
-    lockMs: 0, resets: 0, gravMs: 0, repeatMs: 0, dasDir: 0, dasMs: 0,
-    lowestBy: s.by, spin: false, kick5: false, prev: { ...NO_KEYS },
+    lockMs: 0, resets: 0, gravMs: 0,
+    repeatMs: carry?.repeatMs ?? 0, dasDir: carry?.dasDir ?? 0, dasMs: carry?.dasMs ?? 0,
+    lowestBy: s.by, spin: false, kick5: false, prev: { ...NO_KEYS, ...(carry?.prev ?? {}) },
   };
 }
+
+// 조각이 바뀔 때 넘겨줄 입력 상태 (없으면 현재 눌린 키만이라도 넘긴다)
+export const carryFrom = (st, keys) => ({
+  prev: { ...NO_KEYS, ...(keys ?? st?.prev ?? {}) },
+  dasDir: st?.dasDir ?? 0, dasMs: st?.dasMs ?? 0, repeatMs: st?.repeatMs ?? 0,
+});
 
 const tryMove = (st, board, dx, dy) => {
   if (!pieceFits(board, st.piece, st.rot, st.bx + dx, st.by + dy)) return false;

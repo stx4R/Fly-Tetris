@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMatch, flyPlace, flySnapshot, tickHuman, viewOf } from '../web/play/match.js';
-import { NO_KEYS } from '../web/play/kinematics.js';
+import { DEFAULT_TUNING, NO_KEYS } from '../web/play/kinematics.js';
 import { decisionCandidates, pendingGarbage } from '../src/tetris.js';
 
 const press = (over) => ({ ...NO_KEYS, ...over });
@@ -105,4 +105,63 @@ test('탑아웃하면 상대가 승자가 된다', () => {
   assert.ok(m.over);
   assert.equal(m.winner, 'fly', `사람이 죽었는데 승자가 ${m.winner}`);
   assert.match(m.reason, /human/);
+});
+
+// ---------- 키를 누르고 있을 때의 동작 (조각이 바뀌어도 "새로 눌렀다"로 세면 안 된다) ----------
+// 조각이 고정되면 새 kinematics 상태가 생기는데, 거기서 prev 를 비우면 누르고 있던 키가 매 조각마다
+// 새 엣지로 잡혀 하드드롭이 연발된다. 2026-09-19 에 실제로 났던 버그.
+
+test('하드드롭 키를 계속 누르고 있어도 조각 하나만 떨어진다', () => {
+  const m = createMatch({ seedHuman: 21, seedFly: 21, cap: 500 });
+  const held = press({ hardDrop: true });
+  for (let i = 0; i < 120; i++) tickHuman(m, 16, held);   // 약 2초간 계속 누름
+  assert.equal(m.human.pieces, 1, `연발로 ${m.human.pieces} 개가 떨어졌다`);
+});
+
+test('하드드롭을 뗐다 다시 누르면 다음 조각이 떨어진다', () => {
+  const m = createMatch({ seedHuman: 21, seedFly: 21, cap: 500 });
+  tickHuman(m, 16, press({ hardDrop: true }));
+  assert.equal(m.human.pieces, 1);
+  tickHuman(m, 16, press({}));                            // 뗌
+  tickHuman(m, 16, press({ hardDrop: true }));            // 다시 누름
+  assert.equal(m.human.pieces, 2, '뗐다 눌렀는데 떨어지지 않았다');
+});
+
+test('홀드 키를 계속 누르고 있어도 한 번만 교환된다', () => {
+  const m = createMatch({ seedHuman: 31, seedFly: 31, cap: 500 });
+  const held = press({ hold: true });
+  const first = tickHuman(m, 16, held);
+  assert.equal(first.held, true);
+  const after = m.human.player.current;
+  for (let i = 0; i < 60; i++) tickHuman(m, 16, held);
+  assert.equal(m.human.player.current, after, '누르고 있는 동안 홀드가 반복됐다');
+});
+
+test('회전 키를 계속 누르고 있어도 한 번만 돈다 (조각이 바뀌어도)', () => {
+  const m = createMatch({ seedHuman: 41, seedFly: 41, cap: 500, tuning: { ...DEFAULT_TUNING, gravityMs: 100000, lockDelayMs: 100000 } });
+  const held = press({ cw: true });
+  tickHuman(m, 16, held);
+  const rot = m.human.k.rot;
+  for (let i = 0; i < 60; i++) tickHuman(m, 16, held);
+  assert.equal(m.human.k.rot, rot, '누르고 있는 동안 계속 회전했다');
+});
+
+test('좌우를 누른 채 조각이 바뀌면 DAS 가 이어진다 (다시 누를 필요 없음)', () => {
+  const t = { ...DEFAULT_TUNING, gravityMs: 100000, lockDelayMs: 100000, dasMs: 100, arrMs: 20 };
+  const m = createMatch({ seedHuman: 51, seedFly: 51, cap: 500, tuning: t });
+  const left = press({ left: true });
+  for (let i = 0; i < 40; i++) tickHuman(m, 16, left);     // 벽까지 이동
+  const atWall = m.human.k.bx;
+  // 왼쪽을 누른 채 하드드롭 → 새 조각
+  tickHuman(m, 16, { ...left, hardDrop: true });
+  assert.equal(m.human.pieces, 1);
+  const fresh = m.human.k;
+  assert.ok(fresh, '새 조각이 스폰되지 않았다');
+  assert.equal(fresh.dasDir, -1, 'DAS 방향이 초기화됐다');
+  assert.ok(fresh.dasMs >= t.dasMs, `DAS 충전이 초기화됐다 (${fresh.dasMs})`);
+  // 다음 프레임부터 바로 ARR 로 움직여야 한다
+  const x0 = fresh.bx;
+  tickHuman(m, 100, left);
+  assert.ok(m.human.k.bx < x0, 'DAS 가 이어지지 않아 새 조각이 제자리다');
+  assert.ok(atWall >= 0);
 });

@@ -56,6 +56,10 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .nav a { height: 44px; border-radius: var(--r-m); padding: 0 14px; display: flex; align-items: center; color: var(--text-2); font-size: 15px; font-weight: 500; transition: background var(--dur-base) var(--ease); }
 .nav a:hover { background: var(--grey-100); color: var(--text-2); }
 .nav a[aria-current="page"] { background: var(--brand-weak); color: var(--brand); font-weight: 600; }
+/* 8단계 대전 페이지 — SPA 라우트가 아니라 별도 페이지라 눈에 띄게 구분한다 */
+.nav a.nav-play { justify-content: space-between; gap: 8px; background: var(--brand-weak); color: var(--brand); font-weight: 600; }
+.nav a.nav-play:hover { background: var(--brand-weak); filter: brightness(0.97); color: var(--brand); }
+.nav a.nav-play span { font-size: 11.5px; font-weight: 500; opacity: 0.75; letter-spacing: -0.01em; }
 .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 .info-card { border-radius: var(--r-xl); background: var(--grey-100); padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .info-card b { font-size: 13px; }

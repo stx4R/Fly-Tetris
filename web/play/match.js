@@ -10,7 +10,7 @@
 
 import { WIDTH, applyDecision, createPlayer, enqueueGarbage, holdPiece, holdSwap, nextQueue, pendingGarbage, placePiece } from '../../src/tetris.js';
 import { createRng } from '../../src/prng.js';
-import { DEFAULT_TUNING, ghostBy, spawnState, update } from './kinematics.js';
+import { DEFAULT_TUNING, carryFrom, ghostBy, spawnState, update } from './kinematics.js';
 
 export const SIDES = ['human', 'fly'];
 
@@ -19,7 +19,7 @@ export function createMatch({ seedHuman = 1, seedFly = 1, garbageSeed = 7, tunin
   const fly = createPlayer(seedFly);
   return {
     rng: createRng(garbageSeed), tuning, cap,
-    human: { player: human, k: spawnState(human.board, human.current), lastEvent: null, pieces: 0 },
+    human: { player: human, k: spawnState(human.board, human.current), lastEvent: null, pieces: 0, keys: null },
     fly: { player: fly, k: null, lastEvent: null, pieces: 0 },
     over: false, winner: null, reason: null,
     log: [], // 최근 사건 (렌더의 공격 표시용) { side, sent, cancelled, lines, tspin, combo, at }
@@ -62,18 +62,21 @@ export function tickHuman(m, dt, keys) {
     finish(m, 'fly', 'human 스폰 불가');
     return { locked: false, held: false, event: null };
   }
+  h.keys = keys;
   const r = update(h.k, h.player.board, dt, keys, m.tuning);
 
   if (r.holdRequest && !h.player.holdUsed) {
+    const carry = carryFrom(h.k, keys);
     h.player = holdSwap(h.player);
-    h.k = spawnState(h.player.board, h.player.current);
+    h.k = spawnState(h.player.board, h.player.current, carry);
     return { locked: false, held: true, event: null };
   }
   if (!r.lock) return { locked: false, held: false, event: null };
 
   const { player, event } = placePiece(h.player, { col: r.lock.col, rot: r.lock.rot, top: r.lock.top, spin: r.lock.spin, kick5: r.lock.kick5 });
+  const carry = carryFrom(h.k, keys);
   const done = afterPlace(m, 'human', player, event);
-  h.k = done ? null : spawnState(player.board, player.current);
+  h.k = done ? null : spawnState(player.board, player.current, carry);
   return { locked: true, held: false, event };
 }
 

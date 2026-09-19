@@ -10,7 +10,10 @@ import { createRenderer } from './render.js';
 
 const $ = (id) => document.getElementById(id);
 const humanCanvas = $('human'), flyCanvas = $('fly');
-const statusEl = $('status'), bannerEl = $('banner'), thinkEl = $('think'), speedEl = $('speed'), speedOut = $('speedOut'), gravityEl = $('gravity'), gravityOut = $('gravityOut');
+const statusEl = $('status'), bannerEl = $('banner'), thinkEl = $('think');
+const boardsEl = $('boards');
+const speedEl = $('speed'), speedOut = $('speedOut'), gravityEl = $('gravity'), gravityOut = $('gravityOut');
+const dasEl = $('das'), dasOut = $('dasOut'), arrEl = $('arr'), arrOut = $('arrOut');
 
 const KEYMAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', Space: 'hardDrop',
@@ -25,7 +28,7 @@ let pendingId = 0, pendingDecision = null, awaiting = false, flyNextAt = 0, last
 let last = 0, rafId = 0;
 
 function tuning() {
-  return { ...DEFAULT_TUNING, gravityMs: Number(gravityEl.value) };
+  return { ...DEFAULT_TUNING, gravityMs: Number(gravityEl.value), dasMs: Number(dasEl.value), arrMs: Number(arrEl.value) };
 }
 
 function setBanner(text, tone = '') {
@@ -35,6 +38,7 @@ function setBanner(text, tone = '') {
 }
 
 function newMatch() {
+  for (const k of Object.keys(keys)) keys[k] = false; // 직전 판에서 눌려 있던 키가 새 판으로 새지 않게
   const seed = (Math.random() * 1e9) | 0;
   match = createMatch({ seedHuman: seed, seedFly: seed, garbageSeed: seed ^ 0x5bf03635, tuning: tuning(), cap: 5000 });
   pendingDecision = null; awaiting = false; pendingId++; lastThinkMs = null;
@@ -110,33 +114,54 @@ function frame(now) {
 }
 
 // ---------- 입력 ----------
+// 슬라이더·버튼이 포커스를 쥐고 있으면 Space 가 버튼을 다시 누르고 화살표가 슬라이더를 움직인다.
+// 게임 키가 들어오면 포커스를 본문으로 돌려놓는다.
+const dropFocus = () => { const a = document.activeElement; if (a && a !== document.body && typeof a.blur === 'function') a.blur(); };
+
 addEventListener('keydown', (e) => {
+  const k = KEYMAP[e.code];
+  const game = !!k || e.code === 'KeyR' || e.code === 'KeyP';
+  if (!game) return;
+  e.preventDefault();          // 스페이스·화살표의 기본 스크롤과 버튼 활성화를 막는다
+  dropFocus();
+  if (e.repeat) return;        // OS 자동 반복은 무시 — 반복은 DAS/ARR 이 담당한다
   if (e.code === 'KeyR') { newMatch(); started = true; return; }
   if (e.code === 'KeyP') { paused = !paused; setBanner(paused ? '일시정지 (P)' : ''); return; }
-  const k = KEYMAP[e.code];
-  if (!k) return;
-  e.preventDefault();
   if (!started) { started = true; setBanner(''); }
   keys[k] = true;
-});
+}, { passive: false });
 addEventListener('keyup', (e) => {
   const k = KEYMAP[e.code];
   if (!k) return;
   e.preventDefault();
   keys[k] = false;
-});
+}, { passive: false });
 addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; });
+// 창 밖으로 나갔다 오면 눌림 상태가 남을 수 있다
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { for (const k of Object.keys(keys)) keys[k] = false; return; }
+  // 탭이 숨겨진 동안 rAF 가 멈춘다. 돌아왔을 때 그동안의 시간이 한꺼번에 흐르지 않도록 시계를 다시 맞춘다.
+  last = performance.now();
+  flyNextAt = Math.max(flyNextAt, last + 300);
+});
 
-speedEl.addEventListener('input', () => { speedOut.textContent = `${speedEl.value} ms`; });
-gravityEl.addEventListener('input', () => { gravityOut.textContent = `${gravityEl.value} ms`; });
-$('restart').addEventListener('click', () => { newMatch(); started = true; });
+const bindSlider = (el, out, unit = ' ms') => {
+  const show = () => { out.textContent = `${el.value}${unit}`; };
+  el.addEventListener('input', show);
+  el.addEventListener('change', () => { show(); el.blur(); });
+  show();
+};
+$('restart').addEventListener('click', (e) => { newMatch(); started = true; e.currentTarget.blur(); });
 
 // ---------- 시작 ----------
-// 한 쪽이 쓰는 가로 셀 수 (홀드 5 + 간격 + 가비지 바 + 간격 + 보드 10 + 간격 + 넥스트 5)
-const CELLS_PER_SIDE = 21.8;
+// 한 쪽이 쓰는 셀 수 — 가로: 홀드 5 + 간격 + 가비지 바 + 간격 + 보드 10 + 간격 + 넥스트 5, 세로: 버퍼 2 + 보드 20 + 여백 2.2
+const CELLS_PER_SIDE = 21.8, CELL_ROWS = 24.2;
 function pickCell() {
-  const avail = Math.max(320, innerWidth - 60) - 28; // 본문 패딩 + 보드 사이 간격
-  return Math.max(11, Math.min(24, Math.floor(avail / (2 * CELLS_PER_SIDE))));
+  const w = Math.max(320, (boardsEl?.clientWidth ?? innerWidth) - 24);   // 보드 사이 간격
+  const h = Math.max(200, (boardsEl?.clientHeight ?? innerHeight) - 4);
+  const byWidth = Math.floor(w / (2 * CELLS_PER_SIDE));
+  const byHeight = Math.floor(h / CELL_ROWS);
+  return Math.max(9, Math.min(26, Math.min(byWidth, byHeight)));
 }
 function buildRenderers() {
   const cell = pickCell();
@@ -147,8 +172,10 @@ addEventListener('resize', () => { if (renderers && pickCell() !== renderers.hum
 
 function boot() {
   buildRenderers();
-  speedOut.textContent = `${speedEl.value} ms`;
-  gravityOut.textContent = `${gravityEl.value} ms`;
+  bindSlider(speedEl, speedOut);
+  bindSlider(gravityEl, gravityOut);
+  bindSlider(dasEl, dasOut);
+  bindSlider(arrEl, arrOut);
 
   worker = new Worker(new URL('./fly-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = onWorkerMessage;
@@ -161,5 +188,12 @@ function boot() {
   last = performance.now();
   rafId = requestAnimationFrame(frame);
 }
+
+// 디버그 훅 — 콘솔·자동화에서 상태를 들여다본다 (게임 로직에는 관여하지 않는다)
+globalThis.__versus = {
+  get match() { return match; }, keys,
+  get started() { return started; }, get paused() { return paused; }, get ready() { return ready; },
+  get cell() { return renderers?.human.cell; }, tuning,
+};
 
 boot();
