@@ -4,7 +4,13 @@
 // 엔진 보드는 0/1 만 담는다 (조각 종류를 남기지 않는다) — 그래서 쌓인 블록은 한 가지 색이고,
 // 조각 색은 지금 움직이는 조각·고스트·홀드·넥스트에만 쓴다. 실제보다 화려하게 보이려고 색을 지어내지 않는다.
 
-import { HEIGHT, PIECES, SHAPES, WIDTH } from '../../src/tetris.js';
+import { HEIGHT, PIECES, SHAPES, WIDTH, pieceCells } from '../../src/tetris.js';
+
+// 주의 — 좌표계가 둘이다.
+//   SHAPES[piece][rot].cells : 정규화 좌표 (바운딩 박스 기준, minX/minY 를 뺀 것). (col, top) 과 짝이다.
+//   pieceCells(piece, rot, bx, by) : 박스 좌표 (bx, by) 에서의 실제 보드 셀. kinematics 의 (bx, by) 와 짝이다.
+// 현재 조각·고스트는 (bx, by) 로 들고 있으므로 반드시 pieceCells 를 써야 한다. SHAPES 를 (bx, by) 에 그대로
+// 더하면 28개 회전 중 14개가 최대 2칸 어긋나고(특히 I), 그리는 위치와 실제로 고정되는 위치가 달라진다.
 
 export const PIECE_COLORS = ['#22d3ee', '#facc15', '#c084fc', '#4ade80', '#f87171', '#60a5fa', '#fb923c']; // I O T S Z J L
 const STACK = '#94a3b8';
@@ -99,22 +105,15 @@ export function createRenderer(canvas, { cell = 22 } = {}) {
     }
 
     // 고스트 → 현재 조각 순서로 (겹치면 현재 조각이 위)
-    if (view.ghost) {
-      const s = SHAPES[view.ghost.piece][view.ghost.rot];
-      ctx.globalAlpha = 0.22;
-      for (const [dx, dy] of s.cells) {
-        const gx = view.ghost.bx + dx, gy = view.ghost.by + dy;
-        if (gy >= -SHOW_BUFFER) block(boardX + gx * cell, rowY(gy), PIECE_COLORS[view.ghost.piece]);
+    const drawPiece = (pc, alpha) => {
+      ctx.globalAlpha = alpha;
+      for (const [gx, gy] of pieceCells(pc.piece, pc.rot, pc.bx, pc.by)) {
+        if (gy >= -SHOW_BUFFER && gy < HEIGHT && gx >= 0 && gx < WIDTH) block(boardX + gx * cell, rowY(gy), PIECE_COLORS[pc.piece]);
       }
       ctx.globalAlpha = 1;
-    }
-    if (view.piece) {
-      const s = SHAPES[view.piece.piece][view.piece.rot];
-      for (const [dx, dy] of s.cells) {
-        const gx = view.piece.bx + dx, gy = view.piece.by + dy;
-        if (gy >= -SHOW_BUFFER) block(boardX + gx * cell, rowY(gy), PIECE_COLORS[view.piece.piece]);
-      }
-    }
+    };
+    if (view.ghost) drawPiece(view.ghost, 0.22);
+    if (view.piece) drawPiece(view.piece, 1);
 
     // 보드 테두리
     ctx.strokeStyle = FRAME;
