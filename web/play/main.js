@@ -18,7 +18,6 @@ const FLY_PLACE_MS = 150; // 초파리 착수 간격 (고정 — 사용자가 �
 
 const $ = (id) => document.getElementById(id);
 const humanCanvas = $('human'), flyCanvas = $('fly');
-const statusEl = $('status');
 const els = {
   human: { hold: $('humanHold'), next: $('humanNext'), garbage: $('humanGarbage'), combo: $('humanCombo'), badge: $('humanBadge') },
   fly: { hold: $('flyHold'), next: $('flyNext'), garbage: $('flyGarbage'), combo: $('flyCombo'), badge: $('flyBadge') },
@@ -86,7 +85,6 @@ function onWorkerMessage(ev) {
     ready = true;
     els.fly.badge.textContent = '생각 중';
     els.fly.badge.className = 'vs-badge';
-    statusEl.textContent = '초파리 준비됐어요 — P ' + m.P.toLocaleString() + ' · 간선 ' + m.E.toLocaleString() + ' · 백엔드 ' + m.backend + ' · 로드 ' + (m.loadMs / 1000).toFixed(1) + '초';
     if (started) requestFlyDecision();
     return;
   }
@@ -100,11 +98,14 @@ function onWorkerMessage(ev) {
   if (m.type === 'error') {
     awaiting = false;
     els.fly.badge.textContent = '오류';
-    statusEl.textContent = '초파리 오류: ' + m.error;
+    els.fly.badge.className = 'vs-badge quiet';
+    console.error('초파리 오류:', m.error);
   }
 }
 
 // ---------- DOM HUD ----------
+// 미니 조각 셀도 보드 셀에 비례한다 (시안: 셀 30px 일 때 HOLD 14px · NEXT 12px)
+const miniPx = (ratio) => Math.max(5, Math.round((renderers?.human.cell ?? 30) * ratio));
 function drawSide(side, view) {
   const e = els[side];
   // HOLD
@@ -115,13 +116,13 @@ function drawSide(side, view) {
     s.textContent = '없어요';
     e.hold.appendChild(s);
   } else {
-    const g = miniGrid(view.hold, SHAPES, 14);
+    const g = miniGrid(view.hold, SHAPES, miniPx(0.4667));
     if (view.holdUsed) g.classList.add('used');
     e.hold.appendChild(g);
   }
   // NEXT 5
   e.next.replaceChildren();
-  for (const p of (view.next ?? []).slice(0, 5)) e.next.appendChild(miniGrid(p, SHAPES, 12));
+  for (const p of (view.next ?? []).slice(0, 5)) e.next.appendChild(miniGrid(p, SHAPES, miniPx(0.4)));
   // 대기 가비지 (트랙 높이 대비 비율)
   const pending = Math.min(20, view.pending ?? 0);
   e.garbage.style.height = (pending / 20) * 100 + '%';
@@ -221,14 +222,23 @@ $('again').addEventListener('click', (e) => { newMatch(); started = true; e.curr
 
 // ---------- 크기 ----------
 // 보드는 10칸 × 22칸(버퍼 2 포함). 패널 안에서 남는 높이·너비에 맞춰 셀 크기를 정한다.
+// 가로로 필요한 셀 수: 사이드 2.8 + 간격 0.4667 + 가비지 0.333 + 간격 0.4667 + 보드 10 = 14.0667
+// (시안 비율, 셀 30px 기준 84 + 14 + 10 + 14 + 300 = 422px)
+const COLS_TOTAL = 2.8 + 0.4667 + 0.3333 + 0.4667 + WIDTH;
+const PANEL_PAD = 40;   // .vs-panel 좌우·상하 padding 20 × 2
+const PANEL_GAP = 14;   // .vs-panel 내부 gap (머리 ↔ 판)
+const ROW_GAP = 16;     // 두 패널 사이
+// 패널이 내용 폭을 따라가므로 셀 크기는 패널이 아니라 **쓸 수 있는 영역**에서 구한다 (순환 참조 방지).
 function pickCell() {
-  const panel = document.querySelector('.vs-play');
-  const h = (panel?.clientHeight ?? 560) - 4;
-  const w = (panel?.clientWidth ?? 420) - 84 - 10 - 28; // 사이드 컬럼 + 가비지 바 + 간격
-  return Math.max(10, Math.min(30, Math.min(Math.floor(h / ROWS), Math.floor(w / WIDTH))));
+  const row = document.querySelector('.vs-row');
+  const head = document.querySelector('.vs-phead');
+  const availH = (row?.clientHeight ?? 640) - PANEL_PAD - (head?.offsetHeight ?? 44) - PANEL_GAP;
+  const availW = ((row?.clientWidth ?? 960) - ROW_GAP) / 2 - PANEL_PAD;
+  return Math.max(10, Math.min(64, Math.floor(Math.min(availH / ROWS, availW / COLS_TOTAL))));
 }
 function buildRenderers() {
   const cell = pickCell();
+  document.documentElement.style.setProperty('--cell', cell + 'px'); // CSS 치수가 전부 여기에 비례한다
   renderers = { human: createRenderer(humanCanvas, { cell }), fly: createRenderer(flyCanvas, { cell }) };
   // 대기 가비지 바는 보드의 '판' 영역(버퍼 제외)과 같은 높이·위치에 둔다
   for (const side of ['human', 'fly']) {
@@ -257,8 +267,7 @@ function boot() {
 
   worker = new Worker(new URL('./fly-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = onWorkerMessage;
-  worker.onerror = (e) => { statusEl.textContent = '워커를 띄우지 못했어요: ' + e.message; els.fly.badge.textContent = '오류'; };
-  statusEl.textContent = '초파리 모델을 불러오는 중이에요';
+  worker.onerror = (e) => { els.fly.badge.textContent = '오류'; console.error('워커를 띄우지 못했어요:', e.message); };
   worker.postMessage({ type: 'init', base: new URL('../../model', import.meta.url).href });
 
   newMatch();
