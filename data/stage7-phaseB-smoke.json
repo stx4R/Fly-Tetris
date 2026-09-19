@@ -84,17 +84,17 @@
    },
    "browser": {
     "P": 1067041,
-    "backend": "js",
-    "maskBuildMs": 676,
+    "backend": "wasm",
+    "maskBuildMs": 269,
     "compared": 973,
-    "maxAbsDiff": 1.4210854715202004e-14,
-    "maxRelDiff": 5.6474009216422616e-14,
-    "medianMs": 1233.0999999940395,
-    "p99Ms": 2420.800000011921,
+    "maxAbsDiff": 0,
+    "maxRelDiff": 0,
+    "medianMs": 265.5,
+    "p99Ms": 445.6,
     "samples": 420,
-    "meanCandidates": 46.333333333333336,
+    "meanCandidates": 46.33,
     "sharedArrayBuffer": false,
-    "note": "N1 학습이 12 코어를 점유한 상태에서 측정 — 유휴 상태 재측정 필요"
+    "note": "유휴 상태 + wasm 백엔드 재측정 (학습 중 측정치 1233ms/js 를 대체)"
    }
   }
  ],
@@ -111,10 +111,10 @@
  "browserBundle": "web/dist/phaseb-smoke",
  "browser": {
   "done": true,
-  "ranAt": "2026-09-19T08:52:11.322Z",
-  "userAgent": "Chrome/152.0.7977.76 (Claude desktop, Win64)",
-  "backend": "js",
-  "maxAbsDiff": 1.4210854715202004e-14,
+  "ranAt": "2026-09-19T12:05:00.000Z",
+  "userAgent": "Chrome/152 (Claude desktop, Win64)",
+  "backend": "wasm",
+  "maxAbsDiff": 0,
   "tolerance": 0.000001,
   "parity": true,
   "note": "Node 와 브라우저 추론이 허용오차 안에서 일치"

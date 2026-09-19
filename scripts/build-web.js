@@ -7,6 +7,7 @@ import { build } from 'esbuild';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildVersus } from './build-versus.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'web');
@@ -38,6 +39,7 @@ async function main() {
   copyFileSync(path.join(FONT, 'pretendardvariable-dynamic-subset.css'), path.join(DIST, 'fonts', 'pretendard.css'));
   cprf(path.join(FONT, 'woff2-dynamic-subset'), path.join(DIST, 'fonts', 'woff2-dynamic-subset'));
   writeFileSync(path.join(DIST, '.nojekyll'), '');
+  buildVersus(path.join(DIST, 'versus')); // 8단계 사람 vs 초파리 대전 페이지 (dist 를 비운 뒤라 여기서 같이 굽는다)
   const sizes = [];
   const walk = (dir, rel = '') => { for (const f of readdirSync(dir)) { const p = path.join(dir, f); const r = path.posix.join(rel, f); if (statSync(p).isDirectory()) walk(p, r); else sizes.push([r, statSync(p).size]); } };
   walk(DIST);

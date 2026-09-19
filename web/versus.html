@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사람 vs 초파리 — 실시간 테트리스 대전</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px 16px 40px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120 60%);
+    color: #e2e8f0; font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  header { max-width: 1100px; margin: 0 auto 14px; }
+  h1 { font-size: 18px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: #94a3b8; font-size: 12.5px; margin: 0; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  .boards { display: flex; gap: 28px; justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  canvas { border-radius: 10px; background: rgba(2,6,23,0.35); }
+  .panel {
+    max-width: 1100px; margin: 16px auto 0; display: flex; gap: 20px; flex-wrap: wrap;
+    align-items: center; justify-content: center;
+    padding: 12px 16px; border: 1px solid rgba(148,163,184,0.22); border-radius: 10px; background: rgba(15,23,42,0.5);
+  }
+  .ctl { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #cbd5e1; }
+  .ctl output { color: #e2e8f0; font: 12.5px ui-monospace, monospace; min-width: 62px; }
+  input[type=range] { width: 150px; accent-color: #60a5fa; }
+  button {
+    font: 13px ui-sans-serif, system-ui, sans-serif; color: #e2e8f0; cursor: pointer;
+    background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3); border-radius: 7px; padding: 6px 14px;
+  }
+  button:hover { background: rgba(71,85,105,0.9); }
+  #status { max-width: 1100px; margin: 10px auto 0; text-align: center; color: #94a3b8; font: 12px ui-monospace, monospace; }
+  #banner {
+    max-width: 1100px; margin: 14px auto 0; text-align: center; padding: 10px 14px; border-radius: 8px;
+    background: rgba(51,65,85,0.6); border: 1px solid rgba(148,163,184,0.25); font-size: 13px; color: #cbd5e1;
+  }
+  #banner.good { background: rgba(22,101,52,0.35); border-color: rgba(74,222,128,0.45); color: #bbf7d0; }
+  #banner.bad { background: rgba(127,29,29,0.32); border-color: rgba(248,113,113,0.45); color: #fecaca; }
+  footer { max-width: 1100px; margin: 22px auto 0; color: #64748b; font-size: 12px; }
+  kbd { font: 11.5px ui-monospace, monospace; background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3);
+        border-bottom-width: 2px; border-radius: 4px; padding: 1px 5px; color: #e2e8f0; }
+</style>
+</head>
+<body>
+  <header class="wrap">
+    <h1>사람 vs 초파리 — 실시간 테트리스 대전</h1>
+    <p class="sub">
+      초파리 쪽은 초파리 커넥톰의 <strong>배선(희소 마스크)</strong> 위에서 학습된 가중치로 매 수를 고른다.
+      규칙·공격표·가비지는 양쪽 모두 같은 대전 엔진(<code>src/tetris.js</code>)을 쓴다.
+    </p>
+  </header>
+
+  <div class="wrap boards">
+    <canvas id="human"></canvas>
+    <canvas id="fly"></canvas>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="panel">
+    <div class="ctl"><label for="speed">초파리 착수 간격</label><input id="speed" type="range" min="150" max="2000" step="50" value="600"><output id="speedOut"></output></div>
+    <div class="ctl"><label for="gravity">중력</label><input id="gravity" type="range" min="100" max="1500" step="50" value="800"><output id="gravityOut"></output></div>
+    <div class="ctl">생각 시간 <output id="think">—</output></div>
+    <button id="restart">리매치 (R)</button>
+  </div>
+
+  <div id="status">초기화 중…</div>
+
+  <footer class="wrap">
+    <kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↓</kbd> 소프트드롭 · <kbd>Space</kbd> 하드드롭 ·
+    <kbd>↑</kbd>/<kbd>X</kbd> 회전 · <kbd>Z</kbd> 반대회전 · <kbd>A</kbd> 180° · <kbd>C</kbd> 홀드 ·
+    <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 리매치
+    <p>초파리의 착수 간격만 조절할 수 있고 모델 자체는 약화시키지 않는다. 쌓인 블록이 한 가지 색인 것은 엔진 보드가 조각 종류를 남기지 않기 때문이다.</p>
+  </footer>
+
+  <script type="module" src="web/play/main.js"></script>
+</body>
+</html>

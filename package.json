@@ -35,7 +35,8 @@
     "train-phaseb": "node scripts/train-phaseb.js",
     "phaseb-compare": "node scripts/phaseb-compare.js",
     "phaseb-smoke": "node scripts/phaseb-smoke.js",
-    "phaseb-report": "node scripts/phaseb-report.js"
+    "phaseb-report": "node scripts/phaseb-report.js",
+    "build-versus": "node scripts/build-versus.js"
   },
   "dependencies": {
     "three": "^0.186.0"

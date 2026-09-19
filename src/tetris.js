@@ -522,3 +522,69 @@ export function playMatch(agents, { seedA, seedB, seed = 1, cap = 1000 } = {}) {
   const winner = a.dead && !b.dead ? 1 : b.dead && !a.dead ? 0 : null;
   return { winner, pieces, a, b };
 }
+
+// ---------- 실시간 조작 (8단계 사람 대전 UI) ----------
+//
+// 엔진은 "최종 배치 (col, rot, top)" 단위인데 사람 입력은 셀 단위 실시간이다. 그 사이를 잇는 최소 API.
+// 좌표계는 reachablePlacements 와 같다: 바운딩 박스 왼쪽 위 (bx, by), y 는 아래로 증가하고 -BUFFER 부터 시작한다.
+//
+// 사람 쪽 규칙이 초파리 쪽(reachablePlacements) 과 조금이라도 어긋나면 대전이 공정하지 않다. 그래서 회전 킥의
+// 시도 순서, 정지 판정, lock out 판정을 그대로 쓴다 — test/tetris-realtime.test.js 가 이 API 만으로 한 BFS 와
+// reachablePlacements 의 결과가 같은 집합인지 교차 검증한다.
+
+// 셀 단위 충돌 판정 (보드 밖·버퍼 위·기존 블록과 겹치면 false)
+export function pieceFits(board, piece, rot, bx, by) {
+  return fitsFlat(board, FLAT[piece][rot & 3], bx, by);
+}
+
+// 현재 위치가 차지하는 보드 셀 [x, y] 4개 (렌더용). y < 0 은 버퍼(화면 밖).
+export function pieceCells(piece, rot, bx, by) {
+  const f = FLAT[piece][rot & 3];
+  const out = [];
+  for (let k = 0; k < 4; k++) out.push([bx + f.xs[k], by + f.ys[k]]);
+  return out;
+}
+
+// (rot, bx, by) → placePiece 가 받는 배치. lockOut 이면 버퍼에 걸쳐 고정되는 위치다 (탑아웃).
+export function boxToPlacement(piece, rot, bx, by) {
+  const f = FLAT[piece][rot & 3];
+  return { col: bx + f.minX, rot: rot & 3, top: by + f.minY, lockOut: by + f.minY < 0 };
+}
+
+// 아래로 더 못 내려가는 상태 = 정지. 여기서 락다운 타이머가 돈다.
+export function isResting(board, piece, rot, bx, by) {
+  return !fitsFlat(board, FLAT[piece][rot & 3], bx, by + 1);
+}
+
+// 하드드롭·고스트: 더 못 내려갈 때까지 내린 by
+export function hardDropBox(board, piece, rot, bx, by) {
+  const f = FLAT[piece][rot & 3];
+  let y = by;
+  while (fitsFlat(board, f, bx, y + 1)) y++;
+  return y;
+}
+
+// SRS 회전 + 킥. reachablePlacements 와 같은 순서로 첫 번째로 들어가는 킥을 쓴다. 실패면 null.
+// O 는 어느 회전이나 셀이 같아 킥 표가 없다 — 회전하지 않은 것으로 둔다 (표준 동작).
+// 180° 회전은 가이드라인 킥 표가 없으므로 제자리 회전만 시도한다.
+export function rotateWithKick(board, piece, from, to, bx, by) {
+  const f = from & 3, t = to & 3;
+  if (piece === O_PIECE) return { rot: f, bx, by, kick5: false, kick: 0 };
+  if (f === t) return { rot: f, bx, by, kick5: false, kick: 0 };
+  const kicks = KICKS[piece][(f << 2) | t];
+  if (!kicks) {
+    return fitsFlat(board, FLAT[piece][t], bx, by) ? { rot: t, bx, by, kick5: false, kick: 0 } : null;
+  }
+  const tf = FLAT[piece][t];
+  for (let k = 0; k < kicks.length; k++) {
+    const nx = bx + kicks[k][0], ny = by + kicks[k][1];
+    if (fitsFlat(board, tf, nx, ny)) return { rot: t, bx: nx, by: ny, kick5: k === 4, kick: k };
+  }
+  return null;
+}
+
+// 스폰 시도. 막혀 있으면 null (block out — 사망).
+export function spawnPiece(board, piece) {
+  const { bx, by } = spawnBox(piece);
+  return pieceFits(board, piece, 0, bx, by) ? { rot: 0, bx, by } : null;
+}
