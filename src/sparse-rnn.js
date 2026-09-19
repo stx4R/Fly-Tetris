@@ -248,7 +248,7 @@ export function createSparseRNN(mask, theta, { T = UNROLL, lr = LEAK, hidden = R
     for (let t = 0; t < T; t++) {
       const ni = keepStates ? t + 1 : (t + 1) & 1;
       const x = A(sc.xs[xi]), xNext = A(sc.xs[ni]);
-      if (useWasm) { pre.fill(0); wk.fwdMatvec(N, wv.indptr, wv.indices, wv.W, sc.xs[xi].off, sc.pre.off, B); tanhStep(x, I, xNext, pre, NB); }
+      if (useWasm) { pre.fill(0); wk.fwdMatvec(N, wv.indptr, wv.indices, wv.W, sc.xs[xi].off, sc.pre.off, B); wk.tanhStep(NB, sc.xs[xi].off, sc.I.off, sc.pre.off, sc.xs[ni].off, keep, lr); }
       else k.fwd(N, indptr, indices, W, x, I, xNext, pre);
       for (let o = 0; o < nOutput; o++) { const base = (outputStart + o) * B; for (let b = 0; b < B; b++) dn[b * nOutput + o] += xNext[base + b]; }
       xi = ni;

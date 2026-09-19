@@ -1,0 +1,102 @@
+{
+ "estimatedAt": "2026-09-18T11:50:54.772Z",
+ "phase": "A-4′",
+ "teacherVariant": "1ply-hold-garbage",
+ "teacher": "data\\teacher-attack-1ply-hold-garbage.json (tuned 2026-09-18T11:43:23.731Z)",
+ "plan": {
+  "workers": 12,
+  "budgetHours": 8,
+  "teacherVariant": "1ply-hold-garbage",
+  "train": 24000,
+  "val": 4000,
+  "valFull": 2000,
+  "test": 1453,
+  "testCands": 40.4,
+  "K": 8,
+  "T": 25,
+  "batch": 32,
+  "epochs0": {
+   "expected": 10,
+   "worst": 15
+  },
+  "rounds": 2,
+  "daggerDecisions": 4000,
+  "epochsFt": {
+   "expected": 3,
+   "worst": 5
+  },
+  "quickGames": 5,
+  "playGames": 20,
+  "playCap": 1000,
+  "playDecisions": {
+   "expected": 500,
+   "worst": 1000
+  },
+  "playCands": 43,
+  "pilots": {
+   "runs": 3,
+   "mus": [
+    0,
+    1,
+    4
+   ],
+   "train": 12000,
+   "reducedTrain": 8000,
+   "val": 2000,
+   "epochs": 8
+  },
+  "phaseB": [
+   "C0 (12k)",
+   "C1 s0",
+   "C3 s0",
+   "D0",
+   "C0 listwise",
+   "C4",
+   "C5"
+  ],
+  "phaseBTrain": 12000
+ },
+ "unit": {
+  "gradMs": 73.59961666666668,
+  "scoreMs": 3.395526923076924,
+  "teacherMs": 0.5536799999999857,
+  "speedup": 6.137713936355981,
+  "stepFactor": 2.2744800624514485,
+  "evalFactor": 2.227906823057494,
+  "daggerFactor": 4.354738646871746,
+  "calSource": "실측 (Phase A-3 라운드 0/1: 에폭 11.4 min (평가 제외) @ 23654 → ×2.27; 테스트 1.2 min → ×2.23; DAgger 수집 6.9 min → ×4.35)",
+  "workers": 12,
+  "epochMs24k": 794433.2230110568,
+  "valFullMs": 99588.43771507226,
+  "testMs": 72351,
+  "daggerMs": 415944.00000000006,
+  "cemMs": 135156,
+  "collectMs": 15713.548848980068
+ },
+ "choice": {
+  "daggerRounds": 2,
+  "reducedFrom": null,
+  "totalExpectedMs": 15159443,
+  "totalWorstMs": 23263483,
+  "overBudget": false,
+  "main": {
+   "expected": {
+    "round0": 7944332.230110568,
+    "perRoundEvals": 436064.4865384616,
+    "dagger": 831888.0000000001,
+    "finetune": 5650281.429366607,
+    "final": 146007.65769230772,
+    "total": 15008573.803707944
+   },
+   "worst": {
+    "round0": 11916498.345165852,
+    "perRoundEvals": 655075.9730769232,
+    "dagger": 831888.0000000001,
+    "finetune": 9417135.715611013,
+    "final": 292015.31538461545,
+    "total": 23112613.349238403
+   }
+  }
+ },
+ "elapsedMs": 4351
+}

@@ -89,7 +89,9 @@ function smokeStage7(connectome, pieces) {
   const loaded = loadModel('c0', connectome);
   const { doc, model } = loaded;
   console.log(`using stage-7 C0 model data/stage7/${doc.file} (P ${doc.P}, trained ${doc.trainedAt}, rounds ${doc.rounds}; test top-1 ${(100 * doc.test.top1).toFixed(1)}%, play attack median ${doc.play.attackMedian}, survival ${(100 * doc.play.survival).toFixed(0)}%; gate ${doc.gate?.all ? 'passed' : 'NOT passed'})`);
-  const agent = createNetAgent(model);
+  const hold = doc.teacher?.hold ?? true; // 학습 시 교사·에이전트의 행동 집합 (A-4 1ply 는 hold 없음; A-4′·A-3 는 hold 포함)
+  const agent = createNetAgent(model, { hold });
+  if (doc.teacher) console.log(`  teacher ${doc.teacher.variant} (ply ${doc.teacher.ply}, hold ${hold}) — candidate set ${hold ? 'current ∪ hold' : 'current piece only'}`);
   const same = (a, b) => a.useHold === b.useHold && a.col === b.col && a.rot === b.rot && a.top === b.top;
   let p = createPlayer(SEED);
   let placed = 0, illegal = 0, episodes = 1, candidates = 0, lines = 0, attack = 0;
@@ -104,7 +106,8 @@ function smokeStage7(connectome, pieces) {
     p = r.player;
     lines += r.event.linesCleared; attack += r.event.attack;
     placed++;
-    if (placed % 100 === 0) process.stdout.write(`  ${placed}/${pieces} pieces, ${lines} lines, attack ${attack}, episodes ${episodes} (${((performance.now() - t0) / 1000).toFixed(0)} s)`);
+    if (placed % 100 === 0) process.stdout.write(`  ${placed}/${pieces} pieces, ${lines} lines, attack ${attack}, episodes ${episodes} (${((performance.now() - t0) / 1000).toFixed(0)} s)
+`);
   }
   const elapsed = (performance.now() - t0) / 1000;
   console.log(`

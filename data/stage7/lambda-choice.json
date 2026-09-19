@@ -1,0 +1,56 @@
+{
+ "lambda": 2,
+ "tag": "lambda-mixed-l2",
+ "chosenAt": "2026-09-17T12:20:37.101Z",
+ "rule": "lowest bottom-half pick rate among mixed+reg λ candidates; ties (< 0.5%p) broken by pieces median",
+ "candidates": [
+  {
+   "tag": "lambda-mixed-l0.5",
+   "lambda": 0.5,
+   "bottomHalfRate": 0.143687707641196,
+   "bottomHalfRateCI": [
+    0.12375415282392027,
+    0.1644518272425249
+   ],
+   "top1": 0.3812292358803987,
+   "tau": 0.20619416421523115,
+   "piecesMedian": 88,
+   "attackMedian": 5.5,
+   "tetrisMedian": 0
+  },
+  {
+   "tag": "lambda-mixed-l0",
+   "lambda": 0,
+   "bottomHalfRate": 0.1536544850498339,
+   "bottomHalfRateCI": [
+    0.13372093023255813,
+    0.1744186046511628
+   ],
+   "top1": 0.3712624584717608,
+   "tau": 0.19650631329782073,
+   "piecesMedian": 80,
+   "attackMedian": 5,
+   "tetrisMedian": 0
+  },
+  {
+   "tag": "lambda-mixed-l2",
+   "lambda": 2,
+   "bottomHalfRate": 0.13372093023255813,
+   "bottomHalfRateCI": [
+    0.11461794019933555,
+    0.15282392026578073
+   ],
+   "top1": 0.38787375415282394,
+   "tau": 0.21826226774131482,
+   "piecesMedian": 103,
+   "attackMedian": 9,
+   "tetrisMedian": 0
+  }
+ ],
+ "vsLambda0": {
+  "dBottomHalf": -0.019933554817275767,
+  "dTop1": 0.01661129568106312,
+  "dPieces": 23,
+  "separated": false
+ }
+}

@@ -17,9 +17,18 @@
 //   beamSearch       표준 빔: 매 깊이에서 경로 값 상위 width 개만 남긴다. 튠·플레이용 (결정당 ~850 전이 평가).
 //   scoreCandidates  첫 단계 후보 전체에 각각 폭 width 의 하위 빔(남은 깊이)을 돌려 후보마다 값을 매긴다. 후보 전체의 교사 점수가
 //                    필요한 데이터 수집용 (~25배 비쌈). 선택 = argmax. 표준 빔보다 넓게 보므로 선택이 다를 수 있다.
+//
+// 1-ply 교사 (7단계 Phase A-4, createTeacher1Ply): 같은 특징·같은 위험 전환에 깊이 1, 후보 = 현재 조각의 배치만 (hold 후보 없음, next 미참조).
+//   학생(1-ply 네트워크)이 원리적으로 도달할 수 있는 목표 — 빔 교사는 그대로 두고 상한 참조점으로 쓴다. 가중치는 따로 튜닝 (data/teacher-attack-1ply.json).
+//   scoreCandidates 와 beamSearch 는 깊이 1 에서 같은 값·같은 선택이다 (하위 빔이 없다).
+// Phase A-4′ (hold 없는 1-ply 가 가비지 조건 조각 176.5 로 350 하한 미달 → 사용자 결정): 깊이 1 + hold 후보 (엔진 후보 집합 그대로), CEM 을 가비지 주입 조건에서 다시 튜닝
+//   (TEACHER_VARIANTS['1ply-hold-garbage'], scripts/tune-teacher.js --ply 1 --hold --garbage). hold 는 학생도 가진 정보라 정보 비대칭을 만들지 않는다; 탐색 깊이만 1.
+//   교사 변형 4 종은 모두 보존한다 (빔 · 1ply 솔로튜닝 · 1ply-hold 솔로튜닝 · 1ply-hold 가비지튜닝) — 보고서 비교 대상.
 
-import { HEIGHT, SHAPES, WIDTH, applyDecision, columnHeights, createPlayer, decisionCandidates, pendingGarbage, surfaces } from './tetris.js';
+import { HEIGHT, SHAPES, WIDTH, applyDecision, columnHeights, createPlayer, decisionCandidates, legalPlacementsVersus, pendingGarbage, surfaces } from './tetris.js';
 import { WEIGHTS as DELLACHERIE } from './heuristic.js';
+import { makeInjector } from './versus-data.js';
+import { createRng } from './prng.js';
 
 export const TRANSIENT = ['landingHeight', 'erodedPieceCells', 'attackSent', 'comboState'];
 export const STATE = ['rowTransitions', 'columnTransitions', 'holes', 'cumulativeWells', 'wellDepth', 'tspinSetup', 'garbageQueueHeight'];
@@ -133,7 +142,13 @@ export function transientFeatures(event) {
   };
 }
 
-export function createTeacher(params = DEFAULT_PARAMS, { depth = 3, width = 8 } = {}) {
+// 현재 조각의 배치만 (hold 후보 없음). 1-ply 교사의 후보 집합 — 상태의 hold·next 를 읽지 않는다.
+export function currentPieceCandidates(p) {
+  return legalPlacementsVersus(p.board, p.current).map((c) => ({ useHold: false, piece: p.current, ...c }));
+}
+
+// candidates(player) → 후보 목록: 기본은 엔진의 decisionCandidates (현재 ∪ hold). 1-ply 교사는 currentPieceCandidates.
+export function createTeacher(params = DEFAULT_PARAMS, { depth = 3, width = 8, candidates = decisionCandidates } = {}) {
   const { weights, dangerHeight } = params;
   const wTrans = TRANSIENT.map((k) => weights[k]), wState = STATE.map((k) => weights[k]);
   const sTrans = ['landingHeight', 'erodedPieceCells'].map((k) => DELLACHERIE[k]);
@@ -159,7 +174,7 @@ export function createTeacher(params = DEFAULT_PARAMS, { depth = 3, width = 8 } 
   }
   function expand(node) {
     const out = [];
-    for (const cand of decisionCandidates(node.player)) { const c = child(node, cand); if (c) out.push(c); }
+    for (const cand of candidates(node.player)) { const c = child(node, cand); if (c) out.push(c); }
     return out;
   }
   const byTotal = (a, b) => b.total - a.total;
@@ -206,12 +221,55 @@ export function createTeacher(params = DEFAULT_PARAMS, { depth = 3, width = 8 } 
   }
 
   return {
-    params, depth, width,
+    params, depth, width, candidates,
     beamSearch, scoreCandidates, expand, child,
     choose: beamSearch,
     // 데이터 수집용 에이전트: scoreCandidates 의 argmax
     chooseScored(player) { const r = scoreCandidates(player); return r.chosen >= 0 ? r.candidates[r.chosen].cand : null; },
   };
+}
+
+// 1-ply 교사 (Phase A-4): 깊이 1 · 현재 조각의 배치만. hold 후보가 없고 하위 빔이 없으므로 상태의 hold·next 는 값에도 선택에도 들어가지 않는다
+// (결과 보드·큐·콤보만). ply: 1 표식은 워커·에이전트가 같은 행동 집합(hold 없음)으로 맞추는 데 쓴다.
+export function createTeacher1Ply(params = DEFAULT_PARAMS) {
+  return { ...createTeacher(params, { depth: 1, width: 1, candidates: currentPieceCandidates }), ply: 1, hold: false };
+}
+export const SEARCH_1PLY = { ply: 1, depth: 1, width: 1, hold: false };
+// 깊이 1 + hold 후보 (Phase A-4′ 교사; A-4 에서는 대조 변형): hold 가 비어 있을 때만 next[0] 을 (hold 조각으로) 참조한다. 하위 빔 없음.
+export const SEARCH_1PLY_HOLD = { ply: 1, depth: 1, width: 1, hold: true };
+export const SEARCH_BEAM = { ply: 3, depth: 3, width: 8, hold: true };
+
+// 교사 변형 (파일 이름 · 탐색 · 튜닝 조건). key 는 스크립트의 --teacher 옵션 값. 데이터 파일은 versus-decisions[-key].json.gz (beam 은 접미사 없음, 6단계 이름 유지).
+//   garbage: CEM 평가에 인공 가비지 주입 (rate/dist 는 6단계 수집·7단계 게이트와 같은 0.08, 1–4 줄) — 튜닝 조건 = 평가 조건 (A-4′ 필수).
+export const CEM_GARBAGE = { rate: 0.08, dist: [0.4, 0.3, 0.15, 0.15] };
+export const TEACHER_VARIANTS = {
+  beam: { file: 'teacher-attack.json', dataFile: 'versus-decisions.json.gz', search: SEARCH_BEAM, garbage: null, gamesPerIndividual: 2, label: 'beam depth 3 width 8 (stage 6)' },
+  '1ply': { file: 'teacher-attack-1ply.json', dataFile: 'versus-decisions-1ply.json.gz', search: SEARCH_1PLY, garbage: null, gamesPerIndividual: 2, label: '1-ply, current piece only (no hold/next), solo-tuned (A-4)' },
+  '1ply-hold': { file: 'teacher-attack-1ply-hold.json', dataFile: 'versus-decisions-1ply-hold.json.gz', search: SEARCH_1PLY_HOLD, garbage: null, gamesPerIndividual: 2, label: '1-ply + hold candidates, solo-tuned (A-4 contrast)' },
+  '1ply-hold-garbage': { file: 'teacher-attack-1ply-hold-garbage.json', dataFile: 'versus-decisions-1ply-hold-garbage.json.gz', search: SEARCH_1PLY_HOLD, garbage: CEM_GARBAGE, gamesPerIndividual: 4, label: '1-ply + hold candidates, garbage-tuned (A-4′ teacher)' },
+};
+export const DEFAULT_VARIANT = 'beam';
+// tune-teacher 의 플래그 → 변형 key
+export const variantKey = ({ ply = 3, hold = false, garbage = false } = {}) => (ply !== 1 ? 'beam' : hold ? (garbage ? '1ply-hold-garbage' : '1ply-hold') : '1ply');
+// 스크립트 argv → 변형 key: --teacher KEY (우선) / --ply 1 (+ --hold, --garbage) / 기본 beam
+export function variantOf(argv) {
+  const i = argv.indexOf('--teacher');
+  if (i >= 0) { const k = argv[i + 1]; if (!TEACHER_VARIANTS[k]) throw new Error(`unknown teacher variant ${k} (one of ${Object.keys(TEACHER_VARIANTS).join(', ')})`); return k; }
+  const p = argv.indexOf('--ply');
+  return variantKey({ ply: p >= 0 ? Number(argv[p + 1]) : 3, hold: argv.includes('--hold'), garbage: argv.includes('--garbage') });
+}
+
+// CEM 개체 평가 (teacher-worker 의 evaluate 작업): 시드마다 게임 하나, J = objective. garbage 가 있으면 인공 가비지 주입 —
+// 주입 rng 는 시드에서만 나오므로 (play 평가와 같은 seed·31+7) 같은 세대의 모든 개체가 같은 조각열 + 같은 가비지 도착 일정을 본다 (공통 난수).
+export function evaluateIndividual(teacher, { seeds, cap, garbage = null }) {
+  const games = seeds.map((seed) => { const injector = garbage ? makeInjector(garbage) : null; return playSolo(teacher, { seed, cap, injector, rng: injector ? createRng(seed * 31 + 7) : null }); });
+  return { J: objective(games), games };
+}
+// 탐색 사양 { ply?, depth, width, hold? } → 교사 (워커·스크립트 공용). ply 1 이면 1-ply 교사 (hold false 기본; hold true 면 엔진 후보 집합의 깊이 1), 아니면 빔 교사.
+export function teacherFor(params, search = SEARCH_BEAM) {
+  if (search?.ply !== 1) return createTeacher(params, { depth: search?.depth ?? 3, width: search?.width ?? 8 });
+  if (search.hold) return { ...createTeacher(params, { depth: 1, width: 1 }), ply: 1, hold: true };
+  return createTeacher1Ply(params);
 }
 
 // 단일 플레이 (가비지 없음, 또는 injector 로 인공 가비지). agent.choose(player) → 후보 | null.

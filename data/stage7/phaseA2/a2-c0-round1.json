@@ -1,0 +1,169 @@
+{
+ "round": 1,
+ "trainDecisions": 27273,
+ "valDecisions": 4517,
+ "dagger": {
+  "games": 33,
+  "decisions": 4136,
+  "deadGames": 30,
+  "decisionsMedian": 102,
+  "agreeWithTeacher": 0.32374274661508706,
+  "attackPer1000": 114.12,
+  "tetrises": 11,
+  "garbageReceived": 561,
+  "merged": {
+   "train": 3619,
+   "val": 517,
+   "trainGames": 30,
+   "valGames": 3
+  },
+  "ms": 332918
+ },
+ "train": {
+  "history": [
+   {
+    "epoch": 1,
+    "train": 0.21876471264413166,
+    "val": 0.27292102765008003,
+    "lr": 0.0004522542485937369,
+    "gradNorm": 1.757789783182882,
+    "clippedFrac": 0,
+    "ms": 429081
+   },
+   {
+    "epoch": 2,
+    "train": 0.20409382560772288,
+    "val": 0.2665199642296857,
+    "lr": 0.00032725424859373687,
+    "gradNorm": 1.6570582751673413,
+    "clippedFrac": 0,
+    "ms": 642180
+   },
+   {
+    "epoch": 3,
+    "train": 0.1855030594484928,
+    "val": 0.27040474212160626,
+    "lr": 0.00017274575140626317,
+    "gradNorm": 1.5195058136153123,
+    "clippedFrac": 0,
+    "ms": 901293
+   },
+   {
+    "epoch": 4,
+    "train": 0.1695676588496872,
+    "val": 0.2725119474720137,
+    "lr": 0.000047745751406263163,
+    "gradNorm": 1.431708622833611,
+    "clippedFrac": 0,
+    "ms": 849625
+   }
+  ],
+  "best": {
+   "epoch": 2,
+   "valLoss": 0.2665199642296857
+  },
+  "epochs": 4,
+  "steps": 3412,
+  "stepsPerEpoch": 853,
+  "clippedFrac": 0,
+  "ms": 2822343,
+  "loss": "pairwise",
+  "K": 8,
+  "batch": 32,
+  "lr": 0.0005,
+  "maxEpochs": 5,
+  "patience": 2,
+  "lambda": 2,
+  "valueScale": 102.21892873797239,
+  "weightDecay": 0.01,
+  "negatives": "mixed",
+  "dropout": {
+   "z": 0.1,
+   "h": 0.2
+  }
+ },
+ "test": {
+  "decisions": 1204,
+  "candidates": 51296,
+  "candidatesPerDecision": 42.604651162790695,
+  "tau": 0.32011727179146876,
+  "tauCI": [
+   0.311278974803915,
+   0.3295016383078825
+  ],
+  "top1": 0.45016611295681064,
+  "top1CI": [
+   0.4210963455149502,
+   0.47674418604651164
+  ],
+  "regret": 32.531165282392,
+  "pickPercentile": 0.875290924408871,
+  "bottomHalfRate": 0.0872093023255814,
+  "bottomHalfRateCI": [
+   0.06976744186046512,
+   0.10382059800664452
+  ],
+  "bottomQuarterRate": 0.03156146179401993,
+  "chance": {
+   "decisions": 1204,
+   "candidates": 51296,
+   "candidatesPerDecision": 42.604651162790695,
+   "tau": 0.0005887950105951737,
+   "tauCI": [
+    -0.006187152021766774,
+    0.007588643199083794
+   ],
+   "top1": 0.03239202657807309,
+   "top1CI": [
+    0.022425249169435217,
+    0.04235880398671096
+   ],
+   "regret": 140.4245066445181,
+   "pickPercentile": 0.48872736004832074,
+   "bottomHalfRate": 0.5099667774086378,
+   "bottomHalfRateCI": [
+    0.48255813953488375,
+    0.5382059800664452
+   ],
+   "bottomQuarterRate": 0.25
+  },
+  "ms": 65722
+ },
+ "quick": {
+  "seeds": [
+   60000,
+   60001,
+   60002,
+   60003,
+   60004
+  ],
+  "pieces": [
+   118,
+   299,
+   44,
+   112,
+   106
+  ],
+  "attack": [
+   14,
+   32,
+   4,
+   7,
+   11
+  ],
+  "tetris": [
+   2,
+   0,
+   0,
+   0,
+   0
+  ],
+  "piecesMedian": 112,
+  "piecesMedianCI": [
+   44,
+   299
+  ],
+  "ms": 68173
+ },
+ "ms": 3289626
+}

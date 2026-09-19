@@ -1,7 +1,8 @@
 // 7단계 워커. 시작 시 workerData 로 모델 사양과 공유 메모리를 받는다:
 //   { kind: 'sparse' | 'dense', theta: Float64Array(SAB) 파라미터 (주 스레드가 갱신, 워커는 읽기만), grad: Float64Array(SAB) 이 워커의 기울기 누적,
 //     U: Float32Array(SAB) 후보 입력 풀 (n × U_DIM), mask: { N, E, nInput, nOutput, outputStart, indptr(SAB), indices(SAB), rhoUnit } (sparse),
-//     spec: { T, lr, hidden, dnMean, dnStd, dropoutZ, dropoutH } (sparse) | { hidden: [H1, H2, H3], dropoutH } (dense), teacher: { params, depth, width } | null, index }
+//     spec: { T, lr, hidden, dnMean, dnStd, dropoutZ, dropoutH } (sparse) | { hidden: [H1, H2, H3], dropoutH } (dense), teacher: { params, ply, depth, width, hold } | null, index }
+//   teacher.ply 1 (Phase A-4) 이면 1-ply 교사 (현재 조각만) 이고 hold false — 에이전트도 같은 행동 집합 (hold 후보 없음) 으로 플레이·수집한다.
 // 작업:
 //   grad   { step, loss, decisions: [{ rows, chosen, values? }], scale, lambda, valueScale }  → 각 결정 순전파(train: 드롭아웃 활성) → 손실 (λ > 0 이면 값 마진 가중) → 역전파
 //          (기울기 × scale 을 grad 에 누적; step 이 바뀌면 grad 를 먼저 0 으로). 반환 { L, n, worker }
@@ -13,8 +14,9 @@
 import { parentPort, workerData } from 'node:worker_threads';
 import { createSparseRNN, createDenseMLP } from '../src/sparse-rnn.js';
 import { decisionLoss, valueMarginWeights } from '../src/rank-train.js';
+import { holePenalty } from '../src/stage7-data.js';
 import { createNetAgent, playSoloTracked } from '../src/stage7-agent.js';
-import { createTeacher } from '../src/teacher-attack.js';
+import { teacherFor } from '../src/teacher-attack.js';
 import { collectGame, makeInjector, serialize } from '../src/versus-data.js';
 import { createRng } from '../src/prng.js';
 
@@ -24,8 +26,8 @@ const dropSeed = 1000 + (wd.index ?? 0);
 const model = wd.kind === 'sparse'
   ? createSparseRNN(wd.mask, theta, { T: wd.spec.T, lr: wd.spec.lr, hidden: wd.spec.hidden, dnMean: Float64Array.from(wd.spec.dnMean), dnStd: Float64Array.from(wd.spec.dnStd), dropoutZ: wd.spec.dropoutZ ?? 0, dropoutH: wd.spec.dropoutH ?? 0, seed: dropSeed })
   : createDenseMLP(theta, wd.spec.hidden, { dropoutH: wd.spec.dropoutH ?? 0, seed: dropSeed });
-const agent = createNetAgent(model);
-const teacher = wd.teacher ? createTeacher(wd.teacher.params, { depth: wd.teacher.depth, width: wd.teacher.width }) : null;
+const agent = createNetAgent(model, { hold: wd.teacher?.hold ?? true });
+const teacher = wd.teacher ? teacherFor(wd.teacher.params, wd.teacher) : null;
 let lastStep = -1;
 
 const targetsOf = (job, d) => ({ chosen: d.chosen, pairWeights: job.lambda > 0 && d.values ? valueMarginWeights(d.values, d.chosen, job.lambda, job.valueScale) : null });
@@ -39,6 +41,7 @@ function handle(job) {
         const f = model.forward(U, Array.from(d.rows), { train: true });
         const { L: l, ds } = decisionLoss(job.loss, f.s, targetsOf(job, d));
         L += l;
+        if (job.mu > 0 && d.holes) { const hp = holePenalty(f.s, d.holes); L += job.mu * hp.L; for (let k = 0; k < ds.length; k++) ds[k] += job.mu * hp.ds[k]; } // 구멍 페널티 항 (Phase A-3)
         for (let k = 0; k < ds.length; k++) ds[k] *= job.scale;
         model.backward(f.cache, ds, grad);
       }
@@ -46,7 +49,7 @@ function handle(job) {
     }
     case 'loss': {
       let L = 0;
-      for (const d of job.decisions) { const s = model.score(U, Array.from(d.rows)); L += decisionLoss(job.loss, s, targetsOf(job, d)).L; }
+      for (const d of job.decisions) { const s = model.score(U, Array.from(d.rows)); L += decisionLoss(job.loss, s, targetsOf(job, d)).L; if (job.mu > 0 && d.holes) L += job.mu * holePenalty(s, d.holes).L; }
       return { L, n: job.decisions.length };
     }
     case 'score':
@@ -64,7 +67,7 @@ function handle(job) {
         const doc = serialize(games.map((g, i) => ({ ...g, id: job.ids[i] })), null, {});
         return { games: doc.games, stats: games.map((g) => ({ seed: g.seed, decisions: g.decisions.length, pieces: g.pieces, dead: g.dead, agree: g.agree, attack: g.stats.attack, lines: g.stats.lines, tetris: g.stats.tetris, garbageReceived: g.stats.garbageReceived, ms: g.ms })) };
       }
-      return job.seeds.map((seed) => playSoloTracked(agent, { seed, cap: job.cap, injector, rng: injector ? createRng(seed * 31 + 7) : null }));
+      return job.seeds.map((seed) => playSoloTracked(agent, { seed, cap: job.cap, injector, rng: injector ? createRng(seed * 31 + 7) : null, trace: !!job.trace }));
     }
     case 'bench': {
       const rows = Array.from(job.decisions[0].rows);

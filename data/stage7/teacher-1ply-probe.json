@@ -1,0 +1,454 @@
+{
+ "ranAt": "2026-09-18T10:27:18.374Z",
+ "seeds": [
+  50000,
+  50001,
+  50002,
+  50003,
+  50004,
+  50005,
+  50006,
+  50007,
+  50008,
+  50009,
+  50010,
+  50011,
+  50012,
+  50013,
+  50014,
+  50015,
+  50016,
+  50017,
+  50018,
+  50019
+ ],
+ "garbage": {
+  "rate": 0.08,
+  "dist": [
+   0.4,
+   0.3,
+   0.15,
+   0.15
+  ]
+ },
+ "note": "1-ply 교사 대조 측정 (Phase A-4 정지 근거). 20 게임 × 1000, 시드·주입 rng 는 게이트와 동일.",
+ "variants": [
+  {
+   "name": "1-ply tuned (A-4 CEM), no hold",
+   "garbage": true,
+   "piecesMedian": 176.5,
+   "piecesCI": [
+    134.5,
+    237
+   ],
+   "piecesQuartiles": [
+    110,
+    176.5,
+    259
+   ],
+   "attackMedian": 35.5,
+   "survival": 0,
+   "tetrisMedian": 3.5,
+   "tetrises": 87,
+   "holesAtDeathMedian": 16,
+   "holesInPlay": 6.5,
+   "wellRun": {
+    "median": 4,
+    "p90": 17,
+    "max": 44
+   },
+   "lines": {
+    "single": 717,
+    "double": 244,
+    "triple": 69,
+    "tetris": 87,
+    "clears": 1117,
+    "shares": [
+     0.642,
+     0.218,
+     0.062,
+     0.078
+    ]
+   },
+   "deaths": {
+    "well-fill": 10,
+    "holes": 5,
+    "garbage": 3,
+    "stack": 2
+   },
+   "holds": 0,
+   "garbageReceived": 483,
+   "msPerPiece": 0.084,
+   "ms": 357
+  },
+  {
+   "name": "1-ply with beam-tuned params, no hold",
+   "garbage": true,
+   "piecesMedian": 117,
+   "piecesCI": [
+    102,
+    154.5
+   ],
+   "piecesQuartiles": [
+    97,
+    117,
+    177
+   ],
+   "attackMedian": 17.5,
+   "survival": 0,
+   "tetrisMedian": 1,
+   "tetrises": 42,
+   "holesAtDeathMedian": 17,
+   "holesInPlay": 9,
+   "wellRun": {
+    "median": 4,
+    "p90": 14,
+    "max": 36
+   },
+   "lines": {
+    "single": 516,
+    "double": 179,
+    "triple": 45,
+    "tetris": 42,
+    "clears": 782,
+    "shares": [
+     0.66,
+     0.229,
+     0.058,
+     0.054
+    ]
+   },
+   "deaths": {
+    "well-fill": 11,
+    "holes": 2,
+    "garbage": 5,
+    "stack": 2
+   },
+   "holds": 0,
+   "garbageReceived": 371,
+   "msPerPiece": 0.075,
+   "ms": 223
+  },
+  {
+   "name": "1-ply DEFAULT_PARAMS, no hold",
+   "garbage": true,
+   "piecesMedian": 142.5,
+   "piecesCI": [
+    108.5,
+    176.5
+   ],
+   "piecesQuartiles": [
+    104,
+    142.5,
+    188
+   ],
+   "attackMedian": 19,
+   "survival": 0,
+   "tetrisMedian": 1,
+   "tetrises": 25,
+   "holesAtDeathMedian": 16.5,
+   "holesInPlay": 9,
+   "wellRun": {
+    "median": 3,
+    "p90": 12,
+    "max": 54
+   },
+   "lines": {
+    "single": 694,
+    "double": 182,
+    "triple": 46,
+    "tetris": 25,
+    "clears": 947,
+    "shares": [
+     0.733,
+     0.192,
+     0.049,
+     0.026
+    ]
+   },
+   "deaths": {
+    "stack": 3,
+    "well-fill": 7,
+    "holes": 6,
+    "garbage": 4
+   },
+   "holds": 0,
+   "garbageReceived": 389,
+   "msPerPiece": 0.074,
+   "ms": 238
+  },
+  {
+   "name": "1-ply survival-only (Dellacherie, danger always), no hold",
+   "garbage": true,
+   "piecesMedian": 567.5,
+   "piecesCI": [
+    262.5,
+    759
+   ],
+   "piecesQuartiles": [
+    225,
+    567.5,
+    833
+   ],
+   "attackMedian": 90,
+   "survival": 0.15,
+   "tetrisMedian": 2,
+   "tetrises": 62,
+   "holesAtDeathMedian": 15,
+   "holesInPlay": 3,
+   "wellRun": {
+    "median": 2,
+    "p90": 5,
+    "max": 19
+   },
+   "lines": {
+    "single": 3193,
+    "double": 856,
+    "triple": 113,
+    "tetris": 62,
+    "clears": 4224,
+    "shares": [
+     0.756,
+     0.203,
+     0.027,
+     0.015
+    ]
+   },
+   "deaths": {
+    "holes": 6,
+    "garbage": 6,
+    "well-fill": 4,
+    "stack": 1
+   },
+   "holds": 0,
+   "garbageReceived": 1519,
+   "msPerPiece": 0.08,
+   "ms": 885
+  },
+  {
+   "name": "1-ply tuned params + hold candidates (depth 1)",
+   "garbage": true,
+   "piecesMedian": 1000,
+   "piecesCI": [
+    1000,
+    1000
+   ],
+   "piecesQuartiles": [
+    1000,
+    1000,
+    1000
+   ],
+   "attackMedian": 318,
+   "survival": 0.75,
+   "tetrisMedian": 40.5,
+   "tetrises": 743,
+   "holesAtDeathMedian": 14,
+   "holesInPlay": 1,
+   "wellRun": {
+    "median": 7,
+    "p90": 19,
+    "max": 73
+   },
+   "lines": {
+    "single": 2204,
+    "double": 1158,
+    "triple": 323,
+    "tetris": 743,
+    "clears": 4428,
+    "shares": [
+     0.498,
+     0.262,
+     0.073,
+     0.168
+    ]
+   },
+   "deaths": {
+    "well-fill": 2,
+    "garbage": 3
+   },
+   "holds": 6037,
+   "garbageReceived": 1931,
+   "msPerPiece": 0.142,
+   "ms": 2466
+  },
+  {
+   "name": "1-ply beam-tuned params + hold candidates (depth 1)",
+   "garbage": true,
+   "piecesMedian": 987,
+   "piecesCI": [
+    732,
+    1000
+   ],
+   "piecesQuartiles": [
+    711,
+    987,
+    1000
+   ],
+   "attackMedian": 265,
+   "survival": 0.5,
+   "tetrisMedian": 29.5,
+   "tetrises": 548,
+   "holesAtDeathMedian": 14,
+   "holesInPlay": 4.5,
+   "wellRun": {
+    "median": 4.5,
+    "p90": 16,
+    "max": 58
+   },
+   "lines": {
+    "single": 2448,
+    "double": 924,
+    "triple": 413,
+    "tetris": 548,
+    "clears": 4333,
+    "shares": [
+     0.565,
+     0.213,
+     0.095,
+     0.126
+    ]
+   },
+   "deaths": {
+    "well-fill": 3,
+    "garbage": 5,
+    "stack": 1,
+    "holes": 1
+   },
+   "holds": 5215,
+   "garbageReceived": 1921,
+   "msPerPiece": 0.131,
+   "ms": 2055
+  },
+  {
+   "name": "1-ply survival-only + hold candidates (depth 1)",
+   "garbage": true,
+   "piecesMedian": 1000,
+   "piecesCI": [
+    1000,
+    1000
+   ],
+   "piecesQuartiles": [
+    1000,
+    1000,
+    1000
+   ],
+   "attackMedian": 148,
+   "survival": 0.95,
+   "tetrisMedian": 5,
+   "tetrises": 104,
+   "holesAtDeathMedian": 12,
+   "holesInPlay": 0,
+   "wellRun": {
+    "median": 1,
+    "p90": 4,
+    "max": 12
+   },
+   "lines": {
+    "single": 6964,
+    "double": 1277,
+    "triple": 186,
+    "tetris": 104,
+    "clears": 8531,
+    "shares": [
+     0.816,
+     0.15,
+     0.022,
+     0.012
+    ]
+   },
+   "deaths": {
+    "garbage": 1
+   },
+   "holds": 6875,
+   "garbageReceived": 2854,
+   "msPerPiece": 0.137,
+   "ms": 2738
+  },
+  {
+   "name": "no garbage: 1-ply tuned, no hold",
+   "garbage": false,
+   "piecesMedian": 1000,
+   "piecesCI": [
+    1000,
+    1000
+   ],
+   "piecesQuartiles": [
+    1000,
+    1000,
+    1000
+   ],
+   "attackMedian": 233.5,
+   "survival": 1,
+   "tetrisMedian": 27,
+   "tetrises": 519,
+   "holesAtDeathMedian": null,
+   "holesInPlay": 2.5,
+   "wellRun": {
+    "median": 9,
+    "p90": 31,
+    "max": 132
+   },
+   "lines": {
+    "single": 2014,
+    "double": 1225,
+    "triple": 440,
+    "tetris": 519,
+    "clears": 4198,
+    "shares": [
+     0.48,
+     0.292,
+     0.105,
+     0.124
+    ]
+   },
+   "deaths": {},
+   "holds": 0,
+   "garbageReceived": 0,
+   "msPerPiece": 0.075,
+   "ms": 1514
+  },
+  {
+   "name": "beam depth 3 width 8 (reference, beam-tuned)",
+   "garbage": true,
+   "piecesMedian": 1000,
+   "piecesCI": [
+    1000,
+    1000
+   ],
+   "piecesQuartiles": [
+    1000,
+    1000,
+    1000
+   ],
+   "attackMedian": 418.5,
+   "survival": 1,
+   "tetrisMedian": 73,
+   "tetrises": 1448,
+   "holesAtDeathMedian": null,
+   "holesInPlay": 0,
+   "wellRun": {
+    "median": 7,
+    "p90": 17,
+    "max": 69
+   },
+   "lines": {
+    "single": 913,
+    "double": 958,
+    "triple": 569,
+    "tetris": 1448,
+    "clears": 3888,
+    "shares": [
+     0.235,
+     0.246,
+     0.146,
+     0.372
+    ]
+   },
+   "deaths": {},
+   "holds": 7751,
+   "garbageReceived": 2660,
+   "msPerPiece": 2.447,
+   "ms": 48953
+  }
+ ]
+}

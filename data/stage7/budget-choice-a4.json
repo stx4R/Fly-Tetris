@@ -1,0 +1,12 @@
+{
+ "chosenAt": "2026-09-18T11:50:54.772Z",
+ "phase": "A-4′",
+ "teacherVariant": "1ply-hold-garbage",
+ "daggerRounds": 2,
+ "reducedFrom": null,
+ "budgetHours": 8,
+ "totalExpectedMs": 15159443,
+ "totalWorstMs": 23263483,
+ "overBudget": false,
+ "rule": "expected(CEM + recollection + main with DAgger 2) > 8 h → DAgger 1"
+}

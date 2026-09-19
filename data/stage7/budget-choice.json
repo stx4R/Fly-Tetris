@@ -1,0 +1,17 @@
+{
+ "chosenAt": "2026-09-17T22:04:58.982Z",
+ "pilotTrain": 12000,
+ "pilotRuns": 3,
+ "mus": [
+  0,
+  1,
+  4
+ ],
+ "pilotEpochs": 8,
+ "reducedFrom": null,
+ "budgetHours": 8,
+ "totalExpectedMs": 27902496,
+ "totalWorstMs": 36990753,
+ "overBudget": false,
+ "rule": "expected(pilots 12000 + main) > 8 h → pilots 8000"
+}

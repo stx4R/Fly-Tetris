@@ -24,6 +24,8 @@
     "serve": "node scripts/serve-web.js",
     "deploy": "node scripts/deploy-pages.js",
     "tune-teacher": "node scripts/tune-teacher.js",
+    "tune-teacher-1ply": "node scripts/tune-teacher.js --ply 1",
+    "tune-teacher-a4": "node scripts/tune-teacher.js --ply 1 --hold --garbage",
     "collect-versus": "node scripts/collect-versus.js",
     "rank-train": "node scripts/rank-train.js",
     "estimate-budget-stage5": "node scripts/estimate-budget-stage5.js",

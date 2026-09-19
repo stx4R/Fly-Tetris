@@ -4,11 +4,13 @@ import { buildMask, calibrateReadout, createDenseMLP, createSparseRNN, denseMatc
 import { decisionLoss, valueGapScale, valueMarginWeights } from '../src/rank-train.js';
 import { createRng } from '../src/prng.js';
 import { HYPER, analyzeWeights, clipGradient, cosineLr, createAdam, daggerImprovement, shouldStopDagger } from '../src/stage7-train.js';
-import { COMBO_NORM, GARBAGE_NORM, U_LAYOUT, appendDecisions, chanceFromItems, createPool, encodeAfterstate, mergeDagger, metricsFromScores, trainingSubset } from '../src/stage7-data.js';
-import { createTeacher, DEFAULT_PARAMS } from '../src/teacher-attack.js';
-import { collectGame, deserialize, serialize } from '../src/versus-data.js';
-import { createNetAgent } from '../src/stage7-agent.js';
+import { COMBO_NORM, GARBAGE_NORM, U_LAYOUT, appendDecisions, chanceFromItems, createPool, encodeAfterstate, holePenalty, mergeDagger, metricsFromScores, trainingSubset } from '../src/stage7-data.js';
+import { CEM_GARBAGE, SEARCH_1PLY, SEARCH_1PLY_HOLD, TEACHER_VARIANTS, createTeacher, createTeacher1Ply, currentPieceCandidates, DEFAULT_PARAMS, evaluateIndividual, objective, paramsToVector, playSolo, teacherFor, variantOf } from '../src/teacher-attack.js';
+import { assertNoLeak, collectGame, deserialize, makeInjector, serialize, splitByGame } from '../src/versus-data.js';
+import { createNetAgent, playSoloTracked } from '../src/stage7-agent.js';
+import { handle as teacherWorkerHandle } from '../scripts/teacher-worker.js';
 import { applyDecision, createPlayer, decisionCandidates, enqueueGarbage } from '../src/tetris.js';
+import { gunzipSync } from 'node:zlib';
 import { wasmAvailable } from '../src/wasm-kernels.js';
 const require_wasm = () => ({ wasmAvailable });
 
@@ -423,4 +425,332 @@ test('wasm backend equals the js backend: scores, DN means and full gradients ag
     const sa = js.score(U, rows), sb = wasm.score(U, rows);
     for (let k = 0; k < rows.length; k++) assert.ok(Math.abs(sa[k] - sb[k]) < 1e-12);
   }
+});
+
+// ---------- 에폭 체크포인트 / 재개 (자식 프로세스 강제 종료 포함) ----------
+import { spawnSync, spawn } from 'node:child_process';
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const PROBE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'stage7-resume-probe.js');
+const DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'stage7');
+const probeFiles = (name) => ['epoch.json', 'epoch.theta.f64', 'epoch.best.f64', 'epoch.adam.f64', 'probe.json'].map((s) => path.join(DIR, `${name}.${s}`));
+const clean = (name) => { for (const f of probeFiles(name)) if (existsSync(f)) unlinkSync(f); };
+const runProbe = (args) => { const r = spawnSync(process.execPath, [PROBE, ...args], { encoding: 'utf8', timeout: 120000 }); assert.equal(r.status, 0, `probe failed: ${r.stderr}\n${r.stdout}`); return JSON.parse(readFileSync(path.join(DIR, `${args[args.indexOf('--name') + 1]}.probe.json`), 'utf8')); };
+const readMeta = (name) => JSON.parse(readFileSync(path.join(DIR, `${name}.epoch.json`), 'utf8'));
+
+test('epoch checkpoint: a run killed mid-epoch (SIGTERM) resumes from the next epoch with identical earlier epochs, and the resumed Adam state/theta match an uninterrupted run', async () => {
+  const A = 'probe-uninterrupted', B = 'probe-killed';
+  clean(A); clean(B);
+  const full = runProbe(['--name', A, '--epochs', '4']);
+  assert.deepEqual(full.history.map((h) => h.epoch), [1, 2, 3, 4]);
+  // B: 같은 설정을 느리게 돌리다 에폭 2 중간에 강제 종료
+  const child = spawn(process.execPath, [PROBE, '--name', B, '--epochs', '4', '--slow', '400'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = '';
+  child.stdout.on('data', (d) => { out += d; });
+  await new Promise((resolve) => { const t = setInterval(() => { if (/epoch 1 val/.test(out)) { clearInterval(t); setTimeout(resolve, 500); } }, 50); });
+  child.kill('SIGTERM');
+  await new Promise((resolve) => child.on('exit', resolve));
+  assert.ok(existsSync(path.join(DIR, `${B}.epoch.json`)), 'checkpoint of epoch 1 exists after the kill');
+  const meta1 = readMeta(B);
+  assert.equal(meta1.epoch, 1); assert.equal(meta1.done, false); assert.equal(meta1.adamT, 2);
+  assert.ok(!existsSync(path.join(DIR, `${B}.probe.json`)), 'the killed run never finished');
+  // 재실행 → 에폭 2 부터
+  const resumed = runProbe(['--name', B, '--epochs', '4']);
+  assert.equal(resumed.resumedFrom, 1, 'resumed from the epoch-1 checkpoint');
+  assert.deepEqual(resumed.history.map((h) => h.epoch), [1, 2, 3, 4]);
+  assert.equal(resumed.history[0].val, meta1.history[0].val, 'epoch 1 comes from the checkpoint, unchanged');
+  const close = (a, b, tol = 1e-9) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
+  assert.ok(close(resumed.history[0].val, full.history[0].val), 'epoch 1 matches the uninterrupted run (up to gradient-summation order)');
+  // Adam (m, v, t) 와 theta 가 중단 없이 돈 실행과 일치 (기울기 합산 순서의 부동소수점 차이만 허용)
+  assert.equal(resumed.adamT, full.adamT); assert.equal(resumed.steps, full.steps);
+  assert.ok(close(resumed.mSum, full.mSum) && close(resumed.vSum, full.vSum) && close(resumed.thetaSum, full.thetaSum), `state matches: m ${resumed.mSum} vs ${full.mSum}, v ${resumed.vSum} vs ${full.vSum}, θ ${resumed.thetaSum} vs ${full.thetaSum}`);
+  for (let e = 1; e < 4; e++) assert.ok(close(resumed.history[e].val, full.history[e].val, 1e-9), `epoch ${e + 1} val matches (${resumed.history[e].val} vs ${full.history[e].val})`);
+  // 최선 theta 는 val 최소 에폭의 것이고, 학습 뒤 theta 가 그것으로 되돌아간다
+  const bestEpoch = full.history.reduce((b, h) => (h.val < b.val ? h : b)).epoch;
+  assert.equal(full.best.epoch, bestEpoch); assert.equal(resumed.best.epoch, bestEpoch);
+  assert.equal(full.thetaEqualsBest, true); assert.equal(resumed.thetaEqualsBest, true);
+  clean(A); clean(B);
+});
+
+test('epoch checkpoint: a finished round is not retrained (done flag), and a changed configuration ignores the checkpoint', () => {
+  const N = 'probe-config';
+  clean(N);
+  const first = runProbe(['--name', N, '--epochs', '2']);
+  assert.equal(readMeta(N).done, true);
+  const again = runProbe(['--name', N, '--epochs', '2']);
+  assert.equal(again.resumedFrom, 2, 'done checkpoint → skips training');
+  assert.equal(again.thetaSum, first.thetaSum); assert.equal(again.adamT, first.adamT);
+  const changed = runProbe(['--name', N, '--epochs', '2', '--lambda', '1']);
+  assert.equal(changed.ignored, true, 'λ differs → checkpoint ignored');
+  assert.equal(changed.resumedFrom, null);
+  assert.deepEqual(changed.history.map((h) => h.epoch), [1, 2]);
+  assert.notEqual(changed.thetaSum, first.thetaSum);
+  clean(N);
+});
+
+// ---------- Phase A-3: 구멍 페널티 · regret · holes(afterstate) ----------
+
+test('hole penalty: softmax-weighted expected hole increase; gradient sums to zero and matches finite differences through the sparse RNN together with pairwise(λ)', () => {
+  const s = Float64Array.from([0.3, -0.2, 1.1, 0.0]), h = Float64Array.from([0, 2, 5, 1]);
+  const { L, ds, p } = holePenalty(s, h);
+  const Z = s.reduce((a, v) => a + Math.exp(v), 0);
+  let Lref = 0; for (let k = 0; k < 4; k++) Lref += (Math.exp(s[k]) / Z) * h[k];
+  assert.ok(Math.abs(L - Lref) < 1e-12 && Math.abs(p.reduce((a, v) => a + v, 0) - 1) < 1e-12);
+  for (let k = 0; k < 4; k++) assert.ok(Math.abs(ds[k] - p[k] * (h[k] - L)) < 1e-12);
+  assert.ok(Math.abs(ds.reduce((a, v) => a + v, 0)) < 1e-12, 'gradient sums to zero (softmax shift invariance)');
+  // 희소 RNN 을 통한 결합 손실의 기울기 검사: L = pairwise(λ=2) + μ·L_holes
+  const rng = createRng(41);
+  const mask = buildMask(tinyConnectome(7, 34));
+  const layout = sparseLayout(mask, { hidden: 5 });
+  const theta = new Float64Array(layout.P);
+  initSparseTheta(mask, layout, theta, { seed: 8 });
+  for (let q = 0; q < theta.length; q++) theta[q] += rng.uniform(-0.25, 0.25);
+  const U = randU(rng, 5), rows = [0, 1, 2, 3, 4];
+  const model = createSparseRNN(mask, theta, { T: 5, lr: 0.33, hidden: 5 });
+  calibrateReadout(model, U, rows);
+  const values = [10, 8, 9.5, -5, 6], holes = Float64Array.from([0, 3, 0, 6, 1]);
+  const targets = { chosen: 0, pairWeights: valueMarginWeights(values, 0, 2, valueGapScale([{ values, chosen: 0 }])) };
+  const mu = 4;
+  const total = (sc) => decisionLoss('pairwise', sc, targets).L + mu * holePenalty(sc, holes).L;
+  const f = model.forward(U, rows);
+  const { ds: d1 } = decisionLoss('pairwise', f.s, targets);
+  const hp = holePenalty(f.s, holes);
+  const dsum = Float64Array.from(d1, (v, k) => v + mu * hp.ds[k]);
+  const grad = new Float64Array(theta.length);
+  model.backward(f.cache, dsum, grad);
+  finiteDiffCheck(theta, grad, () => total(model.forward(U, rows, { keep: false }).s));
+});
+
+test('regret: absolute and relative regret match a hand calculation; zero when the policy picks the teacher optimum; ties in V give relative regret 0', () => {
+  const mk = (values, chosen) => ({ rows: Int32Array.from(values.map((_, k) => k)), chosen, values, subset: false });
+  const items = [mk([10, 4, 7, 1], 0), mk([3, 9, 9, 0], 1), mk([5, 5, 5], 0)];
+  // 정책 선택: 결정 1 → 인덱스 2 (V 7) → regret 3, 상대 3/9; 결정 2 → 인덱스 3 (V 0) → regret 9, 상대 1; 결정 3 → 동점 → 0
+  const scores = [Float64Array.from([0, 0, 1, 0]), Float64Array.from([0, 0, 0, 1]), Float64Array.from([1, 0, 0])];
+  const m = metricsFromScores(items, scores);
+  assert.ok(Math.abs(m.regret - (3 + 9 + 0) / 3) < 1e-12, `regret ${m.regret}`);
+  assert.ok(Math.abs(m.relRegret - (3 / 9 + 1 + 0) / 3) < 1e-12, `relative regret ${m.relRegret}`);
+  const perfect = metricsFromScores(items, items.map((d) => Float64Array.from(d.values)));
+  assert.equal(perfect.regret, 0); assert.equal(perfect.relRegret, 0); assert.equal(perfect.top1, 1);
+  assert.ok(m.regretCI.length === 2 && m.relRegretCI.length === 2);
+});
+
+test('holes(afterstate) in the dataset equal the engine: covered empty cells of the applied board minus the current board, floored at 0', () => {
+  const data = sampleDecisions(5, 4);
+  const pool = createPool(600);
+  const items = appendDecisions(pool, data.decisions, { subset: false });
+  const countHoles = (board) => { let n = 0; for (let x = 0; x < 10; x++) { let covered = false; for (let y = 0; y < 20; y++) { const c = board[y * 10 + x]; if (c) covered = true; else if (covered) n++; } } return n; };
+  let nonzero = 0;
+  for (let i = 0; i < data.decisions.length; i++) {
+    const d = data.decisions[i];
+    const before = countHoles(d.player.board);
+    for (let k = 0; k < d.candidates.length; k++) {
+      const { player } = applyDecision(d.player, d.candidates[k]);
+      const expected = Math.max(0, countHoles(player.board) - before);
+      assert.equal(items[i].holes[k], expected, `decision ${i} candidate ${k}`);
+      if (expected > 0) nonzero++;
+    }
+  }
+  assert.ok(nonzero > 0, 'some candidates create holes');
+});
+
+// ---------- Phase A-4: 1-ply 교사 ----------
+
+// 상태의 next 큐·hold 만 바꾼 변형. 현재 조각·보드·큐·콤보는 그대로 (next 는 drawn 이후의 조각열).
+const withOtherFuture = (p, k) => ({ ...p, seq: { at: (i) => (i < p.drawn ? p.seq.at(i) : (i * 3 + k) % 7) }, hold: k % 7, holdUsed: false });
+
+test('1-ply teacher never references hold or next: candidates are current-piece placements only, values and choice are identical across any next queue / hold state, and it never holds in play', () => {
+  const t1 = createTeacher1Ply(DEFAULT_PARAMS);
+  assert.equal(t1.ply, 1); assert.equal(t1.depth, 1); assert.equal(t1.hold, false);
+  const beam = createTeacher(DEFAULT_PARAMS);
+  let p = createPlayer(21);
+  p = enqueueGarbage(p, 2, 4);
+  let checked = 0, beamDiffers = 0;
+  for (let i = 0; i < 30; i++) {
+    const r = t1.scoreCandidates(p);
+    assert.equal(r.candidates.length, currentPieceCandidates(p).length);
+    assert.ok(r.candidates.every((c) => c.cand.useHold === false && c.cand.piece === p.current), 'current piece only, never hold');
+    assert.ok(r.candidates.length < decisionCandidates(p).length || p.holdUsed, 'strictly fewer than the engine candidate set (no hold branch)');
+    for (const k of [1, 2, 5]) {
+      const q = withOtherFuture(p, k);
+      const r2 = t1.scoreCandidates(q);
+      assert.deepEqual(r2.candidates.map((c) => [c.cand.col, c.cand.rot, c.cand.top, c.value, c.danger]), r.candidates.map((c) => [c.cand.col, c.cand.rot, c.cand.top, c.value, c.danger]), `decision ${i}: values depend on next/hold (k ${k})`);
+      assert.equal(r2.chosen, r.chosen);
+      const a = t1.choose(p), b = t1.choose(q);
+      assert.deepEqual([b.col, b.rot, b.top, b.useHold], [a.col, a.rot, a.top, a.useHold]);
+      // 같은 변형에 빔 교사는 (next 5 + hold 를 보므로) 값이 달라지는 상태가 있어야 검사가 변별력이 있다 (비싸므로 몇 번만)
+      if (k === 1 && beamDiffers < 3) { const vb = beam.scoreCandidates(p).candidates.map((c) => c.value), vb2 = beam.scoreCandidates(q).candidates.map((c) => c.value); if (vb.length !== vb2.length || vb.some((v, j) => Math.abs(v - vb2[j]) > 1e-9)) beamDiffers++; }
+      checked++;
+    }
+    p = applyDecision(p, t1.choose(p)).player;
+    if (p.dead) break;
+  }
+  assert.ok(checked >= 60, `checked ${checked}`);
+  assert.ok(beamDiffers > 0, 'the beam teacher does react to next/hold on these states (so the 1-ply invariance is not vacuous)');
+  const g = playSolo(t1, { seed: 4, cap: 300 });
+  assert.equal(g.holds, 0); assert.equal(g.pieces, 300);
+  assert.equal(teacherFor(DEFAULT_PARAMS, SEARCH_1PLY).ply, 1);
+  assert.equal(teacherFor(DEFAULT_PARAMS, { ply: 1, depth: 3, width: 8 }).depth, 1, 'ply 1 wins over depth/width in the spec');
+});
+
+test('teacher variants are preserved: beam (depth 3 / width 8, hold candidates), 1-ply solo-tuned, 1-ply+hold solo-tuned — each tuned file replays its recorded evaluation game exactly; the A-4′ garbage-tuned file replays its garbage game', () => {
+  const beam = createTeacher(DEFAULT_PARAMS);
+  assert.equal(beam.depth, 3); assert.equal(beam.width, 8); assert.equal(beam.candidates, decisionCandidates); assert.equal(beam.ply, undefined);
+  const tf = teacherFor(DEFAULT_PARAMS);
+  assert.equal(tf.depth, 3); assert.equal(tf.width, 8); assert.equal(tf.candidates, decisionCandidates);
+  let p = createPlayer(21);
+  let holdCands = 0;
+  for (let i = 0; i < 8; i++) { const r = beam.scoreCandidates(p); holdCands += r.candidates.filter((c) => c.cand.useHold).length; p = applyDecision(p, beam.choose(p)).player; }
+  assert.ok(holdCands > 0, 'beam candidate set includes hold placements');
+  assert.deepEqual(Object.keys(TEACHER_VARIANTS), ['beam', '1ply', '1ply-hold', '1ply-hold-garbage']);
+  assert.equal(variantOf(['--ply', '1', '--hold', '--garbage']), '1ply-hold-garbage'); assert.equal(variantOf(['--ply', '1', '--hold']), '1ply-hold'); assert.equal(variantOf(['--ply', '1']), '1ply'); assert.equal(variantOf([]), 'beam');
+  assert.equal(variantOf(['--teacher', '1ply-hold-garbage']), '1ply-hold-garbage'); assert.throws(() => variantOf(['--teacher', 'nope']), /unknown teacher variant/);
+  const files = new Set([...Object.values(TEACHER_VARIANTS).map((v) => v.file), ...Object.values(TEACHER_VARIANTS).map((v) => v.dataFile)]);
+  assert.equal(files.size, 8, 'every variant has its own teacher and data file — no variant overwrites another');
+  // 각 튜닝 파일: 기록된 solo 평가 게임 0 (시드 50000, 1000 조각) 을 같은 파라미터·같은 탐색으로 다시 두면 통계가 정확히 같다 (엔진·교사 결정적). 파일이 없으면 건너뛴다.
+  let replayed = 0;
+  for (const [key, v] of Object.entries(TEACHER_VARIANTS)) {
+    const file = new URL(`../data/${v.file}`, import.meta.url);
+    if (!existsSync(file)) continue;
+    const doc = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(doc.search.depth, v.search.depth, `${key}: depth`); assert.equal(doc.search.width, v.search.width, `${key}: width`);
+    if (key !== 'beam') { assert.equal(doc.search.ply, 1, `${key}: ply`); assert.equal(doc.search.hold, v.search.hold, `${key}: hold`); }
+    const teacher = teacherFor(doc.params, { ...v.search });
+    const rec = doc.evaluation.solo.games_[0];
+    const g = playSolo(teacher, { seed: rec.seed, cap: 1000 });
+    assert.deepEqual({ attack: g.attack, pieces: g.pieces, lines: g.lines, tetris: g.tetris, tspin: g.tspin, holds: g.holds }, { attack: rec.attack, pieces: rec.pieces, lines: rec.lines, tetris: rec.tetris, tspin: rec.tspin, holds: rec.holds }, `${key}: solo replay`);
+    if (v.search.ply === 1 && !v.search.hold) assert.equal(g.holds, 0, `${key}: never holds`);
+    if (v.garbage) {
+      assert.deepEqual(doc.cemGarbage, v.garbage, `${key}: CEM garbage recorded`);
+      const gr = doc.evaluation.garbage.games_[0];
+      const inj = makeInjector(doc.evaluation.garbage.injection);
+      const gg = playSolo(teacher, { seed: gr.seed, cap: 1000, injector: inj, rng: createRng(gr.seed * 31 + 7) });
+      assert.deepEqual({ attack: gg.attack, pieces: gg.pieces, lines: gg.lines, tetris: gg.tetris }, { attack: gr.attack, pieces: gr.pieces, lines: gr.lines, tetris: gr.tetris }, `${key}: garbage replay`);
+    }
+    replayed++;
+  }
+  assert.ok(replayed >= 1, 'at least the beam teacher file is present');
+});
+
+test('1-ply recollection: collected games carry no hold candidates, the game-level split has no leak and covers every game, the data round-trips, and DAgger merge keeps the splits disjoint; the real file (if present) passes the same checks', () => {
+  const t1 = createTeacher1Ply(DEFAULT_PARAMS);
+  const games = Array.from({ length: 10 }, (_, k) => ({ ...collectGame(t1, { seed: 300 + k, cap: 6, epsilon: 0.3 }), id: k }));
+  for (const g of games) for (const d of g.decisions) { assert.ok(d.candidates.every((c) => !c.useHold)); assert.ok(d.candidates.length >= 1); assert.equal(d.hold, null); }
+  const ids = games.map((g) => g.id);
+  const split = splitByGame(ids, { seed: 5 });
+  assertNoLeak(split, ids);
+  assert.equal(split.train.length + split.val.length + split.test.length, ids.length);
+  assert.throws(() => assertNoLeak({ train: [...split.train, split.test[0]], val: split.val, test: split.test }, ids), /in both/);
+  assert.throws(() => assertNoLeak({ train: split.train, val: split.val, test: split.test.slice(1) }, ids), /in no split/);
+  const doc = serialize(games, split, { teacher: { search: SEARCH_1PLY } });
+  assert.equal(doc.meta.teacher.search.ply, 1);
+  const data = deserialize(doc);
+  assert.equal(data.decisions.length, games.reduce((s, g) => s + g.decisions.length, 0));
+  for (const d of data.decisions) { assert.ok(d.candidates.every((c) => !c.useHold && c.piece === d.player.current)); assert.equal(d.player.hold, null); }
+  const part = (id) => ['train', 'val', 'test'].filter((k) => split[k].includes(id));
+  for (const d of data.decisions) assert.equal(part(d.gameId).length, 1, `game ${d.gameId} in exactly one split`);
+  const pool = createPool(3000);
+  const K = 8;
+  const pick = (k) => data.games.filter((g) => split[k].includes(g.id)).flatMap((g) => g.decisions);
+  const dataset = { pool, K, negatives: 'mixed', hard: 3, gameSeeds: games.map((g) => g.seed), train: appendDecisions(pool, pick('train'), { K, subset: true, negatives: 'mixed', hard: 3 }), val: appendDecisions(pool, pick('val'), { K, subset: true }), test: appendDecisions(pool, pick('test'), { subset: false }) };
+  const more = Array.from({ length: 5 }, (_, k) => ({ ...collectGame(t1, { seed: 900 + k, cap: 4, epsilon: 0 }), id: 100 + k }));
+  const merged = deserialize(serialize(more, null, {})).games;
+  const r = mergeDagger(dataset, merged, { valFraction: 0.2 });
+  assert.equal(r.trainGames, 4); assert.equal(r.valGames, 1);
+  const trainIds = new Set(dataset.train.map((d) => d.gameId)), valIds = new Set(dataset.val.map((d) => d.gameId)), testIds = new Set(dataset.test.map((d) => d.gameId));
+  for (const id of trainIds) assert.ok(!valIds.has(id) && !testIds.has(id));
+  for (const id of valIds) assert.ok(!testIds.has(id));
+  assert.throws(() => mergeDagger(dataset, [{ ...more[0], id: 200, seed: games[0].seed, decisions: [] }]), /seed .* collides/);
+  // 실제 재수집 파일
+  const file = new URL('../data/versus-decisions-1ply.json.gz', import.meta.url);
+  if (!existsSync(file)) return;
+  const raw = JSON.parse(gunzipSync(readFileSync(file)).toString());
+  assert.equal(raw.meta.teacher.search.ply, 1);
+  const realIds = raw.games.map((g) => g.id);
+  assertNoLeak(raw.meta.split, realIds);
+  assert.equal(new Set(realIds).size, realIds.length);
+  let hold = 0;
+  for (const g of raw.games) for (const row of g.decisions) { assert.equal(row[2], -1, 'hold is always empty'); for (const c of row[10]) if (c[0] === 1) hold++; }
+  assert.equal(hold, 0, 'no hold candidates in the 1-ply file');
+  const seeds = raw.games.map((g) => g.seed);
+  assert.equal(new Set(seeds).size, seeds.length, 'game seeds are unique');
+});
+
+test('A-4′ recollection file (if present): 1-ply + hold teacher data — split has no leak and covers every game, ids and seeds unique, hold candidates present, every candidate piece consistent with current/hold', () => {
+  const file = new URL(`../data/${TEACHER_VARIANTS['1ply-hold-garbage'].dataFile}`, import.meta.url);
+  if (!existsSync(file)) return;
+  const raw = JSON.parse(gunzipSync(readFileSync(file)).toString());
+  assert.equal(raw.meta.teacher.variant, '1ply-hold-garbage'); assert.equal(raw.meta.teacher.search.ply, 1); assert.equal(raw.meta.teacher.search.hold, true); assert.equal(raw.meta.teacher.search.depth, 1);
+  const ids = raw.games.map((g) => g.id);
+  assertNoLeak(raw.meta.split, ids);
+  assert.equal(new Set(ids).size, ids.length);
+  const seeds = raw.games.map((g) => g.seed);
+  assert.equal(new Set(seeds).size, seeds.length);
+  const part = new Map();
+  for (const k of ['train', 'val', 'test']) for (const id of raw.meta.split[k]) part.set(id, k);
+  const perPart = { train: 0, val: 0, test: 0 };
+  let hold = 0, n = 0;
+  for (const g of raw.games) { perPart[part.get(g.id)] += g.decisions.length; for (const row of g.decisions) { n++; for (const c of row[10]) if (c[0] === 1) hold++; } }
+  assert.ok(hold > 0.2 * n, `hold candidates are present (${hold} in ${n} decisions)`);
+  assert.ok(perPart.train >= 20000 && perPart.val > 0 && perPart.test > 0, JSON.stringify(perPart));
+  const data = deserialize(raw);
+  for (const d of data.decisions.slice(0, 500)) for (const c of d.candidates) assert.equal(c.piece, c.useHold ? (d.player.hold === null ? d.player.seq.at(d.player.drawn) : d.player.hold) : d.player.current);
+});
+
+// ---------- Phase A-4′: 가비지 조건 CEM · hold 를 쓰는 학생 ----------
+
+test('garbage-condition CEM really injects garbage: the evaluate job with a garbage spec plays every game under injection (garbage received > 0, shorter games), the same seeds give the same schedule (deterministic), and without the spec nothing is injected', () => {
+  const v = Array.from(paramsToVector(DEFAULT_PARAMS));
+  const seeds = [10000, 10001, 10002, 10003];
+  const base = { type: 'evaluate', vectors: [v], seeds, cap: 400, ...SEARCH_1PLY_HOLD };
+  const [withG] = teacherWorkerHandle({ ...base, garbage: CEM_GARBAGE });
+  const [noG] = teacherWorkerHandle({ ...base, garbage: null });
+  assert.equal(withG.games.length, 4); assert.equal(noG.games.length, 4);
+  assert.ok(withG.games.every((g) => g.garbageReceived > 0), `garbage received per game: ${withG.games.map((g) => g.garbageReceived)}`);
+  assert.ok(noG.games.every((g) => g.garbageReceived === 0));
+  assert.ok(withG.games.some((g) => g.pieces < 400) || withG.games.reduce((s, g) => s + g.attack, 0) < noG.games.reduce((s, g) => s + g.attack, 0), 'garbage makes the games harder');
+  assert.ok(withG.games.every((g) => g.holds > 0), 'depth-1 + hold teacher uses hold');
+  const [again] = teacherWorkerHandle({ ...base, garbage: CEM_GARBAGE });
+  assert.deepEqual(again, withG, 'same seeds → same garbage schedule and same result (common random numbers within a generation)');
+  // J 는 6단계 형태 그대로: 공격 + 0.5 × 조각 (시드 평균)
+  const direct = evaluateIndividual(teacherFor(DEFAULT_PARAMS, SEARCH_1PLY_HOLD), { seeds, cap: 400, garbage: CEM_GARBAGE });
+  assert.equal(direct.J, objective(direct.games));
+  assert.ok(Math.abs(direct.J - withG.J) < 1e-9);
+  assert.ok(Math.abs(direct.J - direct.games.reduce((s, g) => s + g.attack + 0.5 * g.pieces, 0) / 4) < 1e-9);
+  // 주입 일정은 교사와 무관: 다른 가중치의 개체도 같은 시드에서 같은 첫 주입을 본다 (큐에 들어간 첫 가비지 = 첫 '받은' 가비지가 아닐 수 있으므로 injector 자체를 본다)
+  const inj = makeInjector(CEM_GARBAGE);
+  const firstInjection = () => { const rng = createRng(10000 * 31 + 7); let p = createPlayer(10000); for (let i = 0; i < 200; i++) { const q = inj(p, rng); if (q !== p) return i; } return -1; };
+  assert.equal(firstInjection(), firstInjection());
+  assert.ok(firstInjection() >= 0);
+});
+
+test('student agent generates and selects hold candidates: with hold on, the live candidate set contains hold placements and a hold-preferring model picks them (choose/pick agree, tracked play counts holds); with hold off, no hold candidate is ever generated', () => {
+  // 가짜 모델: afterstate 의 hold 슬롯이 비어 있지 않으면 (u[hold + 0..6] 중 하나가 1) 높은 점수
+  const holdScore = { score(U, rows) { return Float64Array.from(rows, (r) => { let s = 0; for (let k = 0; k < 7; k++) s += U[r * U_DIM + U_LAYOUT.hold + k]; return s + 0.01 * U[r * U_DIM + 5]; }); } };
+  const withHold = createNetAgent(holdScore, { hold: true }), noHold = createNetAgent(holdScore, { hold: false });
+  assert.equal(withHold.hold, true); assert.equal(noHold.hold, false);
+  let p = createPlayer(31);
+  let holdPicks = 0, holdLive = 0;
+  for (let i = 0; i < 20; i++) {
+    const cands = decisionCandidates(p);
+    const { live } = withHold.scoreLive(p, cands);
+    holdLive += live.filter((c) => c.useHold).length;
+    const c = withHold.choose(p);
+    const k = withHold.pick(p, cands);
+    assert.deepEqual([cands[k].useHold, cands[k].col, cands[k].rot, cands[k].top], [c.useHold, c.col, c.rot, c.top], 'pick and choose agree');
+    if (c.useHold) holdPicks++;
+    const { live: live0 } = noHold.scoreLive(p, currentPieceCandidates(p));
+    assert.ok(live0.every((x) => !x.useHold));
+    const c0 = noHold.choose(p);
+    assert.equal(c0.useHold, false); assert.equal(c0.piece, p.current);
+    p = applyDecision(p, c).player;
+    assert.ok(!p.dead);
+  }
+  assert.ok(holdLive > 0, 'hold candidates are generated');
+  assert.ok(holdPicks > 0, `hold candidates are selected when the model prefers them (${holdPicks}/20)`);
+  const g = playSoloTracked(withHold, { seed: 32, cap: 60 });
+  assert.ok(g.holds > 0, 'tracked play records holds');
+  const g0 = playSoloTracked(noHold, { seed: 32, cap: 60 });
+  assert.equal(g0.holds, 0);
 });

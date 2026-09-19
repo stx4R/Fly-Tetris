@@ -1,0 +1,113 @@
+{
+ "mu": 1,
+ "tag": "mu1",
+ "chosenAt": "2026-09-18T01:49:12.945Z",
+ "rule": "lowest test relative regret among μ candidates; ties (< 0.005) broken by median holes at death",
+ "candidates": [
+  {
+   "tag": "mu0",
+   "mu": 0,
+   "train": 12000,
+   "relRegret": 0.1577230497207581,
+   "relRegretCI": [
+    0.14450174838097915,
+    0.16966487208006548
+   ],
+   "regret": 48.12595847176076,
+   "top1": 0.38372093023255816,
+   "tau": 0.22654413375315216,
+   "bottomHalfRate": 0.13538205980066445,
+   "piecesMedian": 100,
+   "attackMedian": 5.5,
+   "tetrisMedian": 0,
+   "tetrises": 1,
+   "holesAtDeathMedian": 20,
+   "holesMedianInPlay": 9.5,
+   "lineComposition": {
+    "single": 641,
+    "double": 21,
+    "triple": 0,
+    "tetris": 1,
+    "clears": 663,
+    "shares": [
+     0.967,
+     0.032,
+     0,
+     0.002
+    ]
+   }
+  },
+  {
+   "tag": "mu1",
+   "mu": 1,
+   "train": 12000,
+   "relRegret": 0.12696254151226882,
+   "relRegretCI": [
+    0.11638452489569846,
+    0.13768748876146375
+   ],
+   "regret": 36.853653654485065,
+   "top1": 0.40365448504983387,
+   "tau": 0.29255770022852273,
+   "bottomHalfRate": 0.08803986710963455,
+   "piecesMedian": 107,
+   "attackMedian": 8.5,
+   "tetrisMedian": 0,
+   "tetrises": 4,
+   "holesAtDeathMedian": 20,
+   "holesMedianInPlay": 8,
+   "lineComposition": {
+    "single": 751,
+    "double": 49,
+    "triple": 12,
+    "tetris": 4,
+    "clears": 816,
+    "shares": [
+     0.92,
+     0.06,
+     0.015,
+     0.005
+    ]
+   }
+  },
+  {
+   "tag": "mu4",
+   "mu": 4,
+   "train": 12000,
+   "relRegret": 0.13097165746037287,
+   "relRegretCI": [
+    0.11979915426156018,
+    0.142147443440157
+   ],
+   "regret": 37.94678488372093,
+   "top1": 0.3911960132890365,
+   "tau": 0.2827854707380813,
+   "bottomHalfRate": 0.08803986710963455,
+   "piecesMedian": 82.5,
+   "attackMedian": 4.5,
+   "tetrisMedian": 0,
+   "tetrises": 1,
+   "holesAtDeathMedian": 20,
+   "holesMedianInPlay": 7,
+   "lineComposition": {
+    "single": 507,
+    "double": 30,
+    "triple": 3,
+    "tetris": 1,
+    "clears": 541,
+    "shares": [
+     0.937,
+     0.055,
+     0.006,
+     0.002
+    ]
+   }
+  }
+ ],
+ "vsMu0": {
+  "dRelRegret": -0.030760508208489273,
+  "separated": true,
+  "dHolesAtDeath": 0,
+  "dPieces": 7
+ }
+}

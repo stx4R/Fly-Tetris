@@ -1,12 +1,14 @@
 // 7단계 학습된 정책의 에이전트. 결정마다 **전체 후보** 의 afterstate 를 u 로 만들어 모델 점수 argmax (K=8 은 학습 부분집합일 뿐, 플레이·평가는 전체 후보).
 // choose(player) → 후보 | null (6단계 playSolo / playMatch 인터페이스), pick(player, cands) → 인덱스 (collectGame 의 policy 인터페이스, DAgger).
 // 사망하는 후보(적용 후 dead)는 제외; 살아남는 후보가 없으면 첫 후보 (어차피 사망).
+// hold: false (Phase A-4, 1-ply 교사) 면 후보 = 현재 조각의 배치만 — 교사와 같은 행동 집합. 학습 데이터에 hold 후보가 없으므로 hold afterstate 는 분포 밖이다.
 
 import { applyDecision, createPlayer, decisionCandidates } from './tetris.js';
-import { wellDepth } from './teacher-attack.js';
+import { boardFeatures, currentPieceCandidates, wellDepth } from './teacher-attack.js';
 import { U_DIM, encodeAfterstate } from './stage7-data.js';
 
-export function createNetAgent(model) {
+export function createNetAgent(model, { hold = true } = {}) {
+  const candidatesOf = hold ? decisionCandidates : currentPieceCandidates;
   let U = new Float32Array(64 * U_DIM);
   let rows = Array.from({ length: 64 }, (_, i) => i);
   function scoreLive(p, cands) {
@@ -23,9 +25,9 @@ export function createNetAgent(model) {
   }
   const argmax = (s) => { let a = 0; for (let k = 1; k < s.length; k++) if (s[k] > s[a]) a = k; return a; };
   return {
-    kind: 'net',
+    kind: 'net', hold,
     choose(p) {
-      const cands = decisionCandidates(p);
+      const cands = candidatesOf(p);
       if (!cands.length) return null;
       const { live, scores } = scoreLive(p, cands);
       return live.length ? live[argmax(scores)] : cands[0];
@@ -42,27 +44,39 @@ export function createNetAgent(model) {
 // 추적 플레이 (Phase A-2 게이트): playSolo 와 같은 규칙에 우물 유지·테트리스 기록을 붙인다.
 //   우물 = wellDepth(board) ≥ WELL_MIN (한 열이 나머지 열의 최솟값보다 2 이상 낮음 — 테트리스 준비 상태). 연속 배치 구간(run)의 길이와 그 구간 안/끝에서 테트리스가 났는지 기록.
 // 반환: playSolo 의 통계 + { wellRuns: [{ length, tetrises }], wellPieces (우물이 있던 조각 수), tetrisPieces (테트리스가 난 조각 번호) }
-export function playSoloTracked(agent, { seed, cap = 1000, injector = null, rng = null, wellMin = 2 } = {}) {
+// trace: true 면 배치마다 [높이, 구멍, 우물 깊이, 누적 가비지 수신, 지운 줄] 을 기록 (사망 원인 분류용, scripts/stage7-deaths.js)
+export function playSoloTracked(agent, { seed, cap = 1000, injector = null, rng = null, wellMin = 2, trace = false } = {}) {
   let p = createPlayer(seed);
   const t0 = performance.now();
   const wellRuns = [];
   let run = null, wellPieces = 0;
   const tetrisPieces = [];
+  const tr = trace ? [] : null;
+  const lineCounts = [0, 0, 0, 0, 0]; // 지운 줄 수별 (인덱스 = 줄 수) — 줄 구성 (싱글/더블/트리플/테트리스)
+  const holesSeq = [];
+  let holesAtDeath = null, noMove = false; // noMove: 놓을 후보가 없음 (스폰 막힘) — 엔진이 dead 를 세우지 않아도 사망으로 센다
   while (p.pieces < cap && !p.dead) {
     const cand = agent.choose(p);
-    if (!cand) break;
+    if (!cand) { noMove = true; break; }
     const { player, event } = applyDecision(p, cand);
     p = player;
+    lineCounts[event.linesCleared]++;
     if (event.linesCleared === 4) { tetrisPieces.push(p.pieces); if (run) run.tetrises++; }
     const depth = p.dead ? 0 : wellDepth(p.board);
     if (depth >= wellMin) { if (!run) run = { start: p.pieces, length: 0, tetrises: 0 }; run.length++; wellPieces++; }
     else if (run) { wellRuns.push(run); run = null; }
-    if (injector && !p.dead) p = injector(p, rng, p.pieces);
+    const f = boardFeatures(p.board);
+    holesSeq.push(f.holes);
+    if (p.dead) holesAtDeath = f.holes;
+    if (tr) { let h = 0; for (let x = 0; x < f.heights.length; x++) if (f.heights[x] > h) h = f.heights[x]; tr.push([h, f.holes, depth, p.stats.garbageReceived, event.linesCleared]); }
+    if (injector && !p.dead) { p = injector(p, rng, p.pieces); if (p.dead && holesAtDeath === null) holesAtDeath = boardFeatures(p.board).holes; }
   }
   if (run) wellRuns.push(run);
+  const sortedHoles = Float64Array.from(holesSeq).sort();
   return {
     seed, pieces: p.pieces, survived: p.pieces >= cap, attack: p.stats.attack, sent: p.stats.sent, lines: p.stats.lines, tetris: p.stats.tetris, tspin: p.stats.tspin, tspinMini: p.stats.tspinMini,
     perfectClear: p.stats.perfectClear, maxCombo: p.stats.maxCombo, holds: p.stats.holds, garbageReceived: p.stats.garbageReceived, ms: performance.now() - t0,
-    wellRuns, wellPieces, tetrisPieces,
+    wellRuns, wellPieces, tetrisPieces, trace: tr, dead: p.dead || noMove,
+    lineCounts, holesAtDeath: (p.dead || noMove) ? (holesAtDeath ?? boardFeatures(p.board).holes) : null, holesMedian: sortedHoles.length ? sortedHoles[sortedHoles.length >> 1] : 0, holesMax: sortedHoles.length ? sortedHoles[sortedHoles.length - 1] : 0,
   };
 }

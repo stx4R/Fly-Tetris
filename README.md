@@ -29,9 +29,10 @@ npm run smoke      # data/stage7/c0.model.json 이 있으면 학습된 C0 로 �
 npm run tune-teacher    # 6단계: 공격형 교사 CEM 튜닝 (세대 20 × 개체 50, 12 워커 ~15 min) → data/teacher-attack.json, 목표 미달 시 exit 1
 npm run collect-versus  # 6단계: 공격형 교사(scored 빔)로 결정 40,000 수집 (hold·next 5·인공 가비지) → data/versus-decisions.json.gz, 누수 검사
 npm run rank-train      # 6단계: 고정 리저버 + 손실 비교 (mse/centered/listwise/pairwise × linear/mlp × dn/board/hand) → data/rank-train.json (--decisions 8000 기본, ~4 min)
-npm run estimate-budget # 7단계 예산 추정 — 실제 희소 RNN 의 BPTT·점수·교사 라벨 단위 비용 + 워커 병렬 배율 실측 → Phase A 기대/상한, 8 h 초과 시 줄일 축을 제안하고 exit 1
-npm run train-c0        # 7단계 Phase A: C0 학습 (8k 결정 × K 8, T 25 BPTT) + DAgger 3 라운드 + 게이트 (top-1 ≥ 35%, 공격 중앙값 ≥ 150, 생존 ≥ 70%) → data/stage7-c0.json, data/stage7/c0.model.{bin,json}; 미달 시 exit 1 (~2.5 h, 12 워커, 체크포인트 재개)
-npm run train-nulls     # 7단계 Phase B (게이트 통과 후): C0 · C0-listwise · C1×2 · C3×2 · C4 · C5 · D0(밀집, 파라미터 수 일치) · C0-shuffled-init 을 같은 하이퍼파라미터·데이터로 1 라운드 → data/stage7-results.json (~8 h)
+npm run estimate-budget # 7단계 예산 추정 — 실제 희소 RNN 의 BPTT·점수·교사 라벨 단위 비용 + 워커 병렬 배율 실측 (+ Phase A 실측 스텝 오버헤드 보정) → Phase A-2 기대/상한, 8 h 초과 시 줄일 축을 제안하고 exit 1
+node scripts/stage7-pilot.js --lambda 0.5   # 7단계 파일럿 (8k · ≤ 8 에폭): 값 마진 가중 λ {0, 0.5, 2} 비교 → --summarize 가 data/stage7/lambda-choice.json 에 최선 λ 와 근거를 쓴다
+npm run train-c0        # 7단계 Phase A-2: C0 학습 (24k 결정 × K 8 mixed negatives, T 25 BPTT, λ, AdamW 감쇠 + 드롭아웃) + DAgger ≤ 5 × 4k (조기 중단) + 게이트 5 항목 (top-1 ≥ 40%, 조각 중앙값 ≥ 400, 공격 중앙값 ≥ 60, 테트리스/게임 중앙값 ≥ 1, 하위 절반 선택 ≤ 5%; 가비지 포함 20 게임) → data/stage7-c0.json, data/stage7/c0.model.{bin,json}; 미달 시 exit 1 (기대 ~6 h, 체크포인트 재개)
+npm run train-nulls     # 7단계 Phase B (게이트 통과 후): C0 · C0-listwise · C1×2 · C3×2 · C4 · C5 · D0(밀집, 파라미터 수 일치) · C0-shuffled-init 을 같은 하이퍼파라미터·데이터(24k)로 1 라운드 → data/stage7-results.json (기대 ~20 h, 조건별 체크포인트)
 npm run build-viz  # 8단계 1차 시각화 데이터 → web/data/ (서브샘플 그래프·한 게임 기록·요약)
 npm run build      # esbuild 번들 → web/dist (총 7.3 MB, 외부 요청 0 — Pretendard 는 node_modules 에서 복사)
 npm run serve      # 로컬 점검 http://localhost:8123

@@ -9,7 +9,7 @@
 
 import { HYPER } from '../src/stage7-train.js';
 import { median, mean } from '../src/evaluate.js';
-import { buildDataset, calibrateState, createSparseState, createDenseState, createTrainingPool, DEFAULT_WORKERS, fmtMs, loadInputs, loadModel, maskFor, pct, scoreItems } from './stage7-lib.js';
+import { buildDataset, calibrateState, createSparseState, createDenseState, createTrainingPool, DEFAULT_WORKERS, fmtMs, loadInputs, loadModel, maskFor, pct, scoreItems, variantOf } from './stage7-lib.js';
 import { appendDecisions, metricsFromScores, selectDecisions, trainingSubset } from '../src/stage7-data.js';
 
 const argv = process.argv.slice(2);
@@ -33,9 +33,12 @@ function diagnose(items, scores) {
 }
 const line = (m) => `τ ${m.tau.toFixed(3)} top-1 ${pct(m.top1)}, pick percentile ${m.pickPercentile.toFixed(3)}, pick in bottom half ${pct(m.bottomHalfRate)} [${m.bottomHalfRateCI.map(pct).join(', ')}], bottom quarter ${pct(m.bottomQuarterRate)}, pick inside hard-8 subset ${pct(m.inSubsetRate)}, value gap median ${m.gapMedian.toFixed(1)} mean ${m.gapMean.toFixed(1)}`;
 
+const connectome0 = () => loadInputs({ data: false }).connectome;
+
 async function main() {
   const t0 = performance.now();
-  const { connectome, teacher, data } = loadInputs();
+  const loaded0 = loadModel(name, connectome0());
+  const { connectome, teacher, data } = loadInputs({ variant: loaded0?.doc?.teacher?.variant ?? variantOf(process.argv.slice(2)) }); // 모델이 학습된 교사 변형의 데이터·교사
   const loaded = loadModel(name, connectome);
   if (!loaded) { console.error(`data/stage7/${name}.model.json 없음`); process.exit(1); }
   const { doc } = loaded;

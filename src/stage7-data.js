@@ -14,6 +14,7 @@
 
 import { GARBAGE_CAP, PIECES, nextQueue, pendingGarbage } from './tetris.js';
 import { afterstate } from './versus-data.js';
+import { boardFeatures } from './teacher-attack.js';
 import { bootstrapCI, kendallTau, mean } from './evaluate.js';
 import { createRng } from './prng.js';
 import { U_DIM } from './sparse-rnn.js';
@@ -65,6 +66,7 @@ export function createPool(capacityRows) {
 }
 
 // 결정 목록을 pool 에 넣는다. subset=true 면 K 후보만, 아니면 전체 후보. 반환 항목 배열.
+// 항목마다 holes: 후보별 구멍 증가량 max(0, holes(afterstate) − holes(현재 보드)) (Phase A-3 구멍 페널티 항; 엔진 boardFeatures 로 계산)
 export function appendDecisions(pool, decisions, { K = TRAIN_K, subset, negatives = 'hard', hard = 3, seed = 1 } = {}) {
   const items = [];
   const buf = new Float32Array(U_DIM);
@@ -73,10 +75,27 @@ export function appendDecisions(pool, decisions, { K = TRAIN_K, subset, negative
     const idx = subset ? trainingSubset(d.candidates, d.chosen, K, { mixed: negatives === 'mixed', hard, rng }) : d.candidates.map((_, i) => i);
     if (pool.used + idx.length > pool.capacity) throw new Error(`pool capacity ${pool.capacity} exceeded`);
     const rows = new Int32Array(idx.length);
-    idx.forEach((k, q) => { encodeCandidate(d, k, buf); pool.U.set(buf, pool.used * U_DIM); rows[q] = pool.used++; });
-    items.push({ rows, chosen: subset ? 0 : d.chosen, values: idx.map((k) => d.candidates[k].value), gameId: d.gameId, index: d.index, subset: !!subset });
+    const holesBefore = boardFeatures(d.player.board).holes;
+    const holes = new Float64Array(idx.length);
+    idx.forEach((k, q) => { const { player, event } = afterstate(d, k); encodeAfterstate(player, event, buf); pool.U.set(buf, pool.used * U_DIM); rows[q] = pool.used++; holes[q] = Math.max(0, boardFeatures(player.board).holes - holesBefore); });
+    items.push({ rows, chosen: subset ? 0 : d.chosen, values: idx.map((k) => d.candidates[k].value), holes, gameId: d.gameId, index: d.index, subset: !!subset });
   }
   return items;
+}
+
+// 구멍 페널티 (Phase A-3): L_holes = Σ_k p_k h_k, p = softmax(s), h_k = 구멍 증가량. dL/ds_k = p_k (h_k − L).
+export function holePenalty(s, h) {
+  const K = s.length;
+  let mx = -Infinity;
+  for (let k = 0; k < K; k++) if (s[k] > mx) mx = s[k];
+  const p = new Float64Array(K);
+  let Z = 0;
+  for (let k = 0; k < K; k++) { p[k] = Math.exp(s[k] - mx); Z += p[k]; }
+  let L = 0;
+  for (let k = 0; k < K; k++) { p[k] /= Z; L += p[k] * h[k]; }
+  const ds = new Float64Array(K);
+  for (let k = 0; k < K; k++) ds[k] = p[k] * (h[k] - L);
+  return { L, ds, p };
 }
 
 // 6단계 rank-train 이 쓴 테스트 결정 (게임 id 순으로 8000 결정이 될 때까지의 게임 중 test 분할) — 7단계 표를 6단계 표와 직접 비교하기 위한 같은 1204 결정.
@@ -129,8 +148,9 @@ export function mergeDagger(dataset, newGames, { valFraction = 0.1 } = {}) {
 
 // items: [{ rows, chosen, values, subset }], scores: items 와 같은 순서의 Float64Array 배열 (후보별 점수). 결정 내 τ · top-1 · regret, 부트스트랩 95% CI.
 // 선택 품질 (Phase A-2 게이트): 모델 선택의 교사 순위 백분위 (1 = 최선), 선택이 교사 값 하위 50% / 25% 인 결정 비율 (bottomHalfRate ≤ 5% 가 게이트).
+// regret (Phase A-3 선택·게이트 기준): 결정마다 V_teacher(교사 최선) − V_teacher(정책 선택); 상대 regret 은 그것을 (V_max − V_min) 으로 나눈 값 (V_max = V_min 인 결정은 0).
 export function metricsFromScores(items, scores, { seed = 11 } = {}) {
-  const taus = [], hits = [], regrets = [], pctl = [], bottomHalf = [], bottomQuarter = [];
+  const taus = [], hits = [], regrets = [], relRegrets = [], pctl = [], bottomHalf = [], bottomQuarter = [];
   let candidates = 0;
   for (let i = 0; i < items.length; i++) {
     const d = items[i], s = scores[i];
@@ -142,6 +162,9 @@ export function metricsFromScores(items, scores, { seed = 11 } = {}) {
     for (let k = 1; k < s.length; k++) if (s[k] > s[a]) a = k;
     hits.push(d.values[a] >= d.values[d.chosen] - 1e-9 ? 1 : 0);
     regrets.push(d.values[d.chosen] - d.values[a]);
+    let vmax = -Infinity, vmin = Infinity;
+    for (let k = 0; k < s.length; k++) { if (d.values[k] > vmax) vmax = d.values[k]; if (d.values[k] < vmin) vmin = d.values[k]; }
+    relRegrets.push(vmax > vmin ? (vmax - d.values[a]) / (vmax - vmin) : 0);
     const n = s.length;
     let rank = 0; // 교사 값이 선택보다 큰 후보 수 (동점은 선택보다 앞선 것으로 치지 않는다)
     for (let k = 0; k < n; k++) if (d.values[k] > d.values[a] + 1e-9) rank++;
@@ -153,7 +176,7 @@ export function metricsFromScores(items, scores, { seed = 11 } = {}) {
     decisions: items.length, candidates, candidatesPerDecision: candidates / items.length,
     tau: mean(taus), tauCI: bootstrapCI(taus, mean, { seed }),
     top1: mean(hits), top1CI: bootstrapCI(hits, mean, { seed: seed + 1 }),
-    regret: mean(regrets),
+    regret: mean(regrets), regretCI: bootstrapCI(regrets, mean, { seed: seed + 3 }), relRegret: mean(relRegrets), relRegretCI: bootstrapCI(relRegrets, mean, { seed: seed + 4 }),
     pickPercentile: mean(pctl), bottomHalfRate: mean(bottomHalf), bottomHalfRateCI: bootstrapCI(bottomHalf, mean, { seed: seed + 2 }), bottomQuarterRate: mean(bottomQuarter),
   };
 }

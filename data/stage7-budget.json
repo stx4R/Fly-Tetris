@@ -1,10 +1,12 @@
 {
- "estimatedAt": "2026-09-17T04:47:20.000Z",
+ "estimatedAt": "2026-09-17T22:04:58.982Z",
+ "phase": "A-3",
  "plan": {
   "workers": 12,
   "budgetHours": 8,
   "train": 24000,
   "val": 4000,
+  "valFull": 2000,
   "test": 1204,
   "testCands": 42.6,
   "K": 8,
@@ -14,10 +16,7 @@
    "expected": 10,
    "worst": 15
   },
-  "rounds": {
-   "expected": 3,
-   "worst": 5
-  },
+  "rounds": 2,
   "daggerDecisions": 4000,
   "epochsFt": {
    "expected": 3,
@@ -32,54 +31,83 @@
   },
   "playCands": 45,
   "pilots": {
-   "runs": 4,
-   "train": 8000,
+   "runs": 3,
+   "mus": [
+    0,
+    1,
+    4
+   ],
+   "train": 12000,
+   "reducedTrain": 8000,
    "val": 2000,
    "epochs": 8
   },
   "phaseB": [
-   "C0 listwise",
+   "C0 (12k)",
    "C1 s0",
-   "C1 s1",
    "C3 s0",
-   "C3 s1",
-   "C4",
-   "C5",
    "D0",
-   "C0 shuffled-init"
-  ]
+   "C0 listwise",
+   "C4",
+   "C5"
+  ],
+  "phaseBTrain": 12000
  },
  "unit": {
-  "gradMs": 113.50948333333334,
-  "scoreMs": 6.564518954248365,
-  "teacherMs": 73.67213000000001,
-  "speedup": 9.070694730862781,
-  "stepFactor": 2.868887166202442,
+  "gradMs": 68.34994999999996,
+  "scoreMs": 3.4104647058823536,
+  "teacherMs": 51.33316,
+  "speedup": 6.873256125766771,
+  "stepFactor": 2.888994510858069,
+  "evalFactor": 2.642125877346158,
+  "daggerFactor": 2.7931948119504564,
   "workers": 12,
-  "perCandidateStepMs": 0.5675474166666666
+  "perCandidateStepMs": 0.3417497499999998,
+  "epochMs24k": 847068.6657516124,
+  "epochMs12k": 479383.1700851085,
+  "epochMs8k": 364466.6724285369,
+  "valFullMs": 111697.67441860466,
+  "testMs": 67242,
+  "daggerMs": 332918
  },
- "phaseA2": {
+ "main": {
   "expected": {
-   "round0": 8847796.60667409,
-   "perRoundEvals": 739283.449047517,
-   "dagger": 488265.3343216249,
-   "finetune": 10289393.805182487,
-   "final": 295403.35294117645,
-   "total": 20660142.548166897
+   "round0": 8470686.657516124,
+   "perRoundEvals": 431932.36764705885,
+   "dagger": 665836,
+   "finetune": 6013235.625527903,
+   "final": 153470.9117647059,
+   "total": 15735161.562455792
   },
   "worst": {
-   "round0": 13271694.910011137,
-   "perRoundEvals": 1995135.2323948052,
-   "dagger": 813775.5572027082,
-   "finetune": 31812728.429917756,
-   "final": 590806.7058823529,
-   "total": 48484140.83540876
+   "round0": 12706029.986274187,
+   "perRoundEvals": 662138.7352941177,
+   "dagger": 665836,
+   "finetune": 10022059.375879839,
+   "final": 306941.8235294118,
+   "total": 24363005.920977555
   }
  },
- "pilotsMs": 10891252.411187068,
- "phaseB": {
-  "expected": 82622872.30865902,
-  "worst": 125096587.21516304
+ "pilots": {
+  "full": {
+   "expected": 12167334.817336721,
+   "worst": 12627747.55263084
+  },
+  "reduced": {
+   "expected": 9409338.873579005,
+   "worst": 9869751.608873121
+  }
  },
- "elapsedMs": 7396
+ "choice": {
+  "pilotTrain": 12000,
+  "reducedFrom": null,
+  "totalExpectedMs": 27902496.37979251,
+  "totalWorstMs": 36990753.4736084,
+  "overBudget": false
+ },
+ "phaseB": {
+  "expected": 32250013.533439644,
+  "worst": 48640174.20383594
+ },
+ "elapsedMs": 4526
 }

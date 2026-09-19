@@ -8,13 +8,17 @@ import { edgePre } from './sparse-rnn.js';
 export const HYPER = {
   loss: 'pairwise', K: 8, negatives: 'mixed', hardNegatives: 3, batch: 32, lr: 1e-3, lrMin: 0, clip: 5, beta1: 0.9, beta2: 0.999, eps: 1e-8,
   weightDecay: 0.01, dropoutZ: 0.1, dropoutH: 0.2,   // 정규화 — C0 에서 한 번 정해 전 조건 공유 (AdamW 식 분리 감쇠 × lr; 드롭아웃은 리드아웃 입력 z 와 은닉층, 평가 시 비활성)
-  lambda: 0,                                         // 값 마진 가중 (train-c0 는 data/stage7/lambda-choice.json 또는 --lambda 로 덮어쓴다)
+  lambda: 2,                                         // 값 마진 가중 (A-2 파일럿 선택; data/stage7/lambda-choice.json 이 있으면 그 값)
+  mu: 0,                                             // 구멍 페널티 계수 (Phase A-3: μ ∈ {0, 1, 4} 파일럿 → data/stage7/mu-choice.json)
+  selectBy: 'relRegret', valFullDecisions: 2000,     // 에폭 최선·조기 종료 기준 = valFull(전체 후보 2,000 결정) 의 상대 regret (Phase A-3; 이전엔 val 손실)
   trainDecisions: 24000, valDecisions: 4000,
   maxEpochs: 15, patience: 3,                 // 라운드 0 (Phase B 도 동일)
-  daggerRounds: 5, daggerDecisions: 4000, daggerCap: 250, ftLr: 5e-4, ftMaxEpochs: 5, ftPatience: 2, // DAgger 재학습 (warm start)
+  daggerRounds: 2, daggerDecisions: 4000, daggerCap: 250, ftLr: 5e-4, ftMaxEpochs: 5, ftPatience: 2, // DAgger 재학습 (warm start); A-3: 2 라운드 (분포 이동은 병목이 아님)
   quickGames: 5, earlyStopRounds: 2,          // 라운드마다 5 게임 조각 수 중앙값; 2 라운드 연속 개선이 CI 안에서 0 이면 남은 라운드 건너뜀
   rhoTarget: 1.0, T: 25, leak: 0.33, hidden: 64, seed: 1,
 };
+// Phase B 예산 축소 (사용자 결정, 2026-09-18): null 시드 2 → 1, 학습 결정 24k → 12k (전 조건 동일 — C0 도 12k 로 다시 학습), 8 h 초과면 C4·C5 부터 제외 (C1·C3·D0 는 유지).
+export const PHASE_B = { trainDecisions: 12000, valDecisions: 4000, nullSeeds: 1, budgetHours: 8, expectedEpochs: 10 };
 
 // 전역 L2 노름 클리핑 (in place). 반환 { norm, clipped }
 export function clipGradient(grad, clip) {
@@ -46,6 +50,7 @@ export function createAdam(P, { beta1 = HYPER.beta1, beta2 = HYPER.beta2, eps = 
       if (weightDecay > 0) { const f = 1 - lr * weightDecay; for (const [a, b] of decayRanges) for (let p = a; p < b; p++) theta[p] *= f; }
     },
     reset() { m.fill(0); v.fill(0); t = 0; },
+    restore(mm, vv, tt) { m.set(mm); v.set(vv); t = tt; }, // 에폭 체크포인트 재개
   };
 }
 
