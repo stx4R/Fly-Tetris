@@ -32,9 +32,26 @@ if (location.search.includes('debug')) {
   addEventListener('load', () => setTimeout(() => { log.textContent += `[ready] viewport ${innerWidth} scrollWidth ${document.documentElement.scrollWidth}` + NL; }, 3000));
 }
 
-// 빌드 id (build-web.js 가 index.html 에 박는다). 배포 직후 새 코드가 옛 데이터·워커를 캐시에서 집지 않게 모든 요청에 붙인다.
+// 빌드 id. build-web.js 가 **두 곳**에 같은 값을 넣는다: 번들 안(esbuild define)과 index.html(window.__BUILD__).
+// 모든 요청(data·워커·모델)에 붙여 배포 직후 새 코드가 옛 파일을 캐시에서 집지 않게 한다.
 export const BUILD = globalThis.__BUILD__ ?? '';
 const ver = BUILD ? `?v=${BUILD}` : '';
+
+// GitHub Pages 는 index.html 에도 max-age=600 을 준다 → 캐시된 **옛 HTML + 새 app.js** 조합이 생길 수 있다.
+// 그 상태로 두면 없어진 요소를 만지다 화면이 통째로 깨지므로, 짝이 어긋난 걸 알아채면 한 번만 새로고침한다.
+// (sessionStorage 로 한 번만 — 서버가 계속 옛 HTML 을 주더라도 무한 새로고침에 빠지지 않는다.)
+function reloadIfStaleShell() {
+  const code = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : '';
+  if (!code || !BUILD || code === BUILD) return false;
+  const key = `fly.reload.${code}`;
+  try {
+    if (sessionStorage.getItem(key)) { console.warn(`빌드가 어긋나요 (HTML ${BUILD} ≠ 코드 ${code}) — 이미 한 번 새로고침해서 그대로 갑니다`); return false; }
+    sessionStorage.setItem(key, '1');
+  } catch { return false; } // 사설 모드 등: 새로고침 루프를 만들지 않는다
+  console.warn(`빌드가 어긋나 새로고침해요 (HTML ${BUILD} ≠ 코드 ${code})`);
+  location.reload();
+  return true;
+}
 
 async function load(name) {
   const r = await fetch(`data/${name}.json${ver}`);
@@ -95,6 +112,7 @@ function buildSettingsControls() {
 }
 
 async function main() {
+  if (reloadIfStaleShell()) return;
   const [graph, s7] = await Promise.all([load('graph-viz'), load('stage7')]);
   fillNumbers(s7, graph);
   buildSettingsControls();
