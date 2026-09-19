@@ -25,7 +25,8 @@ const DECIDE_TIMEOUT_MS = 8000; // 결정이 이만큼 안 오면 워커가 막�
 
 const $ = (id) => document.getElementById(id);
 
-export function createVersusView({ settings, sampled = null, onRecord = null } = {}) {
+export function createVersusView({ settings, sampled = null, onRecord = null, build = '' } = {}) {
+  const ver = build ? `?v=${build}` : '';
   const humanCanvas = $('vs-human'), flyCanvas = $('vs-fly');
   const els = {
     human: { hold: $('vs-humanHold'), next: $('vs-humanNext'), garbage: $('vs-humanGarbage'), combo: $('vs-humanCombo'), badge: $('vs-humanBadge') },
@@ -132,7 +133,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null } =
     if (worker || workerFailed) return;
     try {
       // 클래식 워커 (esbuild 가 IIFE 로 굽는다) — 모듈 워커 지원 여부를 타지 않는다.
-      worker = new Worker(new URL('fly-worker.js', document.baseURI));
+      worker = new Worker(new URL(`fly-worker.js${ver}`, document.baseURI));
     } catch (err) {
       workerFailed = true;
       setFlyBadge('워커를 띄울 수 없어요', true);
@@ -145,7 +146,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null } =
       setFlyBadge('오류', true);
       console.error('워커를 띄우지 못했어요:', e.message ?? e);
     };
-    worker.postMessage({ type: 'init', base: new URL('model', document.baseURI).href, sampled });
+    worker.postMessage({ type: 'init', base: new URL('model', document.baseURI).href, ver, sampled });
   }
 
   // ---------- DOM HUD ----------

@@ -13,7 +13,7 @@
 // 이 세 가지가 커넥톰 · 결정 탐색 · 신경 활동 · 플레이 분석 화면의 원천이다. 없는 값은 만들지 않는다.
 //
 // 메시지
-//   → { type:'init', base, sampled }              모델·마스크·교사 로드 (sampled = 트레이스를 남길 뉴런 인덱스)
+//   → { type:'init', base, ver, sampled }         모델·마스크·교사 로드 (ver = 빌드 id 쿼리, sampled = 트레이스를 남길 뉴런 인덱스)
 //   ← { type:'ready', P, E, backend, loadMs, T, nOutput, hold }
 //   → { type:'decide', id, snapshot, detail }     스냅샷으로 착수 결정 (detail 이면 기록용 계측까지)
 //   ← { type:'decision', id, cand, ms, detail }   cand 가 null 이면 놓을 자리 없음(탑아웃)
@@ -28,6 +28,7 @@ import { packBoard, quantize } from './pack.js';
 let model = null, teacher = null, info = null;
 let hold = true;
 let sampled = null;           // Int32Array — 트레이스를 남길 뉴런 (커넥톰 3D 표본과 같은 인덱스)
+let ver = '';                 // 빌드 id 쿼리 (배포 직후 캐시된 옛 모델을 집지 않게)
 
 // 후보 U 행렬 재사용 버퍼
 let U = new Float32Array(64 * U_DIM);
@@ -37,8 +38,8 @@ function ensure(n) {
 }
 
 async function loadMask(base) {
-  const meta = await (await fetch(`${base}/mask.json`)).json();
-  const buf = await (await fetch(`${base}/mask.bin`)).arrayBuffer();
+  const meta = await (await fetch(`${base}/mask.json${ver}`)).json();
+  const buf = await (await fetch(`${base}/mask.bin${ver}`)).arrayBuffer();
   const indptr = new Int32Array(buf, 0, meta.N + 1);
   const indices = new Int32Array(buf, (meta.N + 1) * 4, meta.E);
   return { N: meta.N, E: meta.E, nInput: meta.nInput, nOutput: meta.nOutput, outputStart: meta.outputStart, indptr, indices, rhoUnit: meta.rhoUnit, condition: meta.condition };
@@ -46,8 +47,8 @@ async function loadMask(base) {
 
 async function init(base, sampledIdx) {
   const t0 = performance.now();
-  const [mask, doc] = await Promise.all([loadMask(base), (await fetch(`${base}/c0.model.json`)).json()]);
-  const bin = await (await fetch(`${base}/c0.model.bin`)).arrayBuffer();
+  const [mask, doc] = await Promise.all([loadMask(base), (await fetch(`${base}/c0.model.json${ver}`)).json()]);
+  const bin = await (await fetch(`${base}/c0.model.bin${ver}`)).arrayBuffer();
   if (bin.byteLength !== doc.P * 4) throw new Error(`c0.model.bin ${bin.byteLength} bytes ≠ 4 × P ${doc.P}`);
   if (mask.N !== doc.mask.N || mask.E !== doc.mask.E) throw new Error(`마스크가 모델과 다르다 (N ${mask.N}/${doc.mask.N}, E ${mask.E}/${doc.mask.E})`);
   const theta = Float64Array.from(new Float32Array(bin, 0, doc.P));
@@ -58,7 +59,7 @@ async function init(base, sampledIdx) {
   // 교사가 hold 를 쓴 변형(1ply-hold-garbage)으로 학습했으므로 학생 후보 집합도 hold 를 포함한다.
   hold = doc.teacher?.hold ?? true;
   // 같은 후보 집합·같은 순서로 교사 점수를 매긴다 (depth 1 — 빔을 타지 않으므로 Node 전용 코드에 닿지 않는다).
-  const tdoc = await (await fetch(`${base}/teacher.json`)).json();
+  const tdoc = await (await fetch(`${base}/teacher.json${ver}`)).json();
   teacher = createTeacher(tdoc.params, { depth: 1, width: 1, candidates: hold ? decisionCandidates : currentPieceCandidates });
 
   sampled = sampledIdx && sampledIdx.length ? Int32Array.from(sampledIdx) : null;
@@ -160,7 +161,7 @@ function decide(snapshot, detail) {
 self.onmessage = async (ev) => {
   const msg = ev.data;
   try {
-    if (msg.type === 'init') { self.postMessage({ type: 'ready', ...(await init(msg.base, msg.sampled)) }); return; }
+    if (msg.type === 'init') { ver = msg.ver ?? ''; self.postMessage({ type: 'ready', ...(await init(msg.base, msg.sampled)) }); return; }
     if (msg.type === 'decide') {
       if (!model) throw new Error('워커가 아직 준비되지 않았다');
       const t0 = performance.now();

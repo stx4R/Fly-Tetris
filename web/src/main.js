@@ -32,8 +32,12 @@ if (location.search.includes('debug')) {
   addEventListener('load', () => setTimeout(() => { log.textContent += `[ready] viewport ${innerWidth} scrollWidth ${document.documentElement.scrollWidth}` + NL; }, 3000));
 }
 
+// 빌드 id (build-web.js 가 index.html 에 박는다). 배포 직후 새 코드가 옛 데이터·워커를 캐시에서 집지 않게 모든 요청에 붙인다.
+export const BUILD = globalThis.__BUILD__ ?? '';
+const ver = BUILD ? `?v=${BUILD}` : '';
+
 async function load(name) {
-  const r = await fetch(`data/${name}.json`);
+  const r = await fetch(`data/${name}.json${ver}`);
   if (!r.ok) throw new Error(`${name}.json ${r.status}`);
   return r.json();
 }
@@ -174,6 +178,7 @@ async function main() {
   const versus = createVersusView({
     settings,
     sampled: graph.nodes.map((n) => n.i),
+    build: BUILD,
     onRecord: () => { refreshAll(); },
   });
 

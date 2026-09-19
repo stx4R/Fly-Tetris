@@ -4,7 +4,8 @@
 // 산출물 크기를 항목별로 찍고 총량이 25 MB 를 넘으면 exit 1. 외부 네트워크 요청은 없다 (모든 자산이 dist 안에 있다).
 
 import { build } from 'esbuild';
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildVersus } from './build-versus.js';
@@ -30,6 +31,19 @@ async function main() {
   const result = await build({ ...common, entryPoints: [path.join(WEB, 'src', 'main.js')], outfile: path.join(DIST, 'app.js') });
   await build({ ...common, entryPoints: [path.join(WEB, 'src', 'fly-worker.js')], outfile: path.join(DIST, 'fly-worker.js') });
   for (const f of ['index.html', 'style.css', 'favicon.svg']) cprf(path.join(WEB, f), path.join(DIST, f));
+  // 캐시 무효화: 파일 이름은 그대로 두고 쿼리에 빌드 id 를 붙인다.
+  // GitHub Pages 는 자산에 max-age 를 준다 → 이름이 안 바뀌면 배포 직후 **새 index.html + 캐시된 옛 app.js** 조합이 생겨
+  // 없어진 요소를 만지다 화면이 통째로 깨진다 (실제로 v0.13.0 배포에서 났다). 같은 배포 안에서는 id 가 고정이라 캐시는 그대로 듣는다.
+  const BUILD = createHash('sha1')
+    .update(readFileSync(path.join(DIST, 'app.js')))
+    .update(readFileSync(path.join(DIST, 'fly-worker.js')))
+    .update(readFileSync(path.join(DIST, 'style.css')))
+    .digest('hex').slice(0, 8);
+  const htmlPath = path.join(DIST, 'index.html');
+  writeFileSync(htmlPath, readFileSync(htmlPath, 'utf8')
+    .replace('href="style.css"', `href="style.css?v=${BUILD}"`)
+    .replace('<script src="app.js"></script>', `<script>window.__BUILD__=${JSON.stringify(BUILD)}</script>
+<script src="app.js?v=${BUILD}"></script>`));
   cprf(path.join(ROOT, 'public', 'Profile.png'), path.join(DIST, 'avatar.png')); // 사이드바 프로필 (원본 public/Profile.png)
   // 런타임에 쓰는 데이터만 복사한다 (6단계 summary·episode 는 stage7.json 안에 요약만 들어갔다)
   mkdirSync(path.join(DIST, 'data'), { recursive: true });
@@ -53,6 +67,7 @@ async function main() {
   for (const [f, b] of shown) console.log(`${mb(b).padStart(9)}  ${f}`);
   console.log(`${mb(total).padStart(9)}  TOTAL (limit ${mb(LIMIT)})`);
   const three = Object.entries(result.metafile.inputs).filter(([k]) => k.includes('node_modules/three')).reduce((s, [, v]) => s + v.bytes, 0);
+  console.log(`build ${BUILD} (app.js · fly-worker.js · style.css · data · model 요청에 ?v= 로 붙는다)`);
   console.log(`app.js inputs: three ${mb(three)} (pre-minify), app ${mb(Object.entries(result.metafile.inputs).filter(([k]) => k.startsWith('web/')).reduce((s, [, v]) => s + v.bytes, 0))}`);
   if (total > LIMIT) { console.error('bundle exceeds 25 MB'); process.exit(1); }
 }
