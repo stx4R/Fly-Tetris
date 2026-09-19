@@ -9,6 +9,7 @@ const PIECES = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
 // 보드 색 (토스 토큰 hex): 빈칸 grey-100, 고정 블록 grey-400, 이번 배치 blue-500, (이론상) 사라진 칸 red-bg
 const CELL = { empty: '#eef1f4', fixed: '#a7b0b9', placed: '#2887ee', gone: '#ffe1e1' };
 const STROKE = { brand: '#2887ee', chosen: '#007738', other: '#c5cbd2' };
+const GRID = '#e3e7ec'; // grey-200 헤어라인
 
 export function createDecisionView(episode, summary, dnTypes, onCandidate) {
   const decs = episode.decisions;
@@ -20,6 +21,7 @@ export function createDecisionView(episode, summary, dnTypes, onCandidate) {
   const state = { d: 0, c: 0 };
   const c0 = summary.conditions.find((r) => r.key === 'C0');
 
+  // 셀은 빈틈 없이 채우고 그 위에 1px 헤어라인 격자를 긋는다 (대전 보드와 같은 방식).
   function drawBoard(canvas, before, after, cell) {
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -27,7 +29,15 @@ export function createDecisionView(episode, summary, dnTypes, onCandidate) {
       const i = y * W + x;
       const a = after[i], b = before ? before[i] : 0;
       ctx.fillStyle = !a && !b ? CELL.empty : a && !b ? CELL.placed : a ? CELL.fixed : CELL.gone;
-      ctx.fillRect(x * cell, y * cell, cell - 1, cell - 1);
+      ctx.fillRect(x * cell, y * cell, cell, cell);
+    }
+    if (cell >= 6) { // 후보 썸네일(3px 셀)에는 격자를 긋지 않는다 — 다 덮인다
+      ctx.strokeStyle = GRID;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = 1; x < W; x++) { ctx.moveTo(x * cell + 0.5, 0); ctx.lineTo(x * cell + 0.5, H * cell); }
+      for (let y = 1; y < H; y++) { ctx.moveTo(0, y * cell + 0.5); ctx.lineTo(W * cell, y * cell + 0.5); }
+      ctx.stroke();
     }
   }
 

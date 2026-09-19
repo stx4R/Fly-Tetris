@@ -260,15 +260,16 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 @media (min-width: 1000px) { .decision { grid-template-columns: 272px minmax(0, 1fr) minmax(0, 1fr); } }
 .row-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row-controls .small { flex: 1; min-width: 0; }
-#board-canvas { width: 200px; height: 400px; background: var(--grey-100); border: 1px solid var(--line); border-radius: var(--r-s); display: block; margin: 0 auto; }
+#board-canvas { width: 200px; height: 400px; background: var(--grey-100); border: 1px solid var(--line); border-radius: var(--r-m); display: block; margin: 0 auto; }
 .board-info { font-size: 13px; font-weight: 500; color: var(--text-3); line-height: 1.5; }
 .board-info b { color: var(--text); }
 .board-info .chosen { color: var(--green-500); font-weight: 600; }
 .candidate-strip { display: flex; flex-wrap: wrap; gap: 4px; max-height: 220px; overflow: auto; }
-.candidate-strip canvas { width: 30px; height: 60px; border: 1px solid var(--line); border-radius: 3px; cursor: pointer; image-rendering: pixelated; background: var(--grey-100); }
-.candidate-strip canvas.selected { border-color: var(--brand); box-shadow: 0 0 0 1.5px var(--brand); }
+.candidate-strip canvas { width: 30px; height: 60px; border: 1px solid var(--line); border-radius: var(--r-xs); cursor: pointer; image-rendering: pixelated; background: var(--grey-100); }
+/* 선택은 2px 색 테두리 대신 1.5px 링 + 약한 배경 (토스 방식) */
+.candidate-strip canvas.selected { border-color: transparent; box-shadow: 0 0 0 1.5px var(--brand); background: var(--brand-weak); }
 .candidate-strip canvas.chosen { border-color: var(--green-500); }
-.candidate-strip canvas.chosen.selected { box-shadow: 0 0 0 1.5px var(--green-500); border-color: var(--green-500); }
+.candidate-strip canvas.chosen.selected { box-shadow: 0 0 0 1.5px var(--green-500); border-color: transparent; background: oklch(0.940 0.045 155); }
 .bump { width: 100%; height: auto; display: block; }
 .spikes { display: grid; grid-template-columns: 1fr; gap: 16px; }
 @media (min-width: 1000px) { .spikes { grid-template-columns: 1.4fr 1fr; } }

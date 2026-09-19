@@ -1,20 +1,33 @@
-// 8단계 — 사람 vs 초파리 실시간 대전. 메인 루프·입력·워커 조율.
+// 8단계 — 사람 vs 초파리 실시간 대전. 메인 루프·입력·워커 조율 (토스 리디자인).
 //
 // 사람: 키보드 → kinematics → 고정되면 엔진에 배치
 // 초파리: 워커가 c0.model 로 후보를 점수화해 고른 배치 (결정 한 번 265 ms 실측이라 메인 스레드에서 돌리지 않는다)
-// 착수 간격은 슬라이더로 조절한다. 모델을 약화시키지 않는다 — 약화시키면 "이 배선이 둔 수"가 아니게 된다.
+//
+// HUD 정책(시안): 판이 도는 동안 보드 위에는 COMBO 만 띄우고, 조각·공격·줄·테트리스·생각 시간은
+// 판이 끝난 뒤 결과 시트에서 사람/초파리 두 열로 비교해 보여준다.
+//
+// 초파리 착수 간격은 150 ms 고정이다 (사용자가 건드리지 못하게 슬라이더를 두지 않는다).
+// 모델 자체는 약화시키지 않는다 — 약화시키면 "이 배선이 둔 수"가 아니게 된다.
 
 import { createMatch, flyPlace, flySnapshot, tickHuman, viewOf } from './match.js';
 import { DEFAULT_TUNING, NO_KEYS } from './kinematics.js';
-import { createRenderer } from './render.js';
+import { ROWS, SHOW_BUFFER, createRenderer, miniGrid } from './render.js';
+import { HEIGHT, SHAPES, WIDTH } from '../../src/tetris.js';
+
+const FLY_PLACE_MS = 150; // 초파리 착수 간격 (고정 — 사용자가 조절하지 못한다)
 
 const $ = (id) => document.getElementById(id);
 const humanCanvas = $('human'), flyCanvas = $('fly');
-const statusEl = $('status'), bannerEl = $('banner'), thinkEl = $('think');
-const boardsEl = $('boards');
-const speedEl = $('speed'), speedOut = $('speedOut'), gravityEl = $('gravity'), gravityOut = $('gravityOut');
-const dasEl = $('das'), dasOut = $('dasOut'), arrEl = $('arr'), arrOut = $('arrOut');
+const statusEl = $('status');
+const els = {
+  human: { hold: $('humanHold'), next: $('humanNext'), garbage: $('humanGarbage'), combo: $('humanCombo'), badge: $('humanBadge') },
+  fly: { hold: $('flyHold'), next: $('flyNext'), garbage: $('flyGarbage'), combo: $('flyCombo'), badge: $('flyBadge') },
+};
+const gravityEl = $('gravity'), gravityOut = $('gravityOut');
 const softEl = $('soft'), softOut = $('softOut');
+const dasEl = $('das'), dasOut = $('dasOut');
+const arrEl = $('arr'), arrOut = $('arrOut');
+const settingsScrim = $('settingsScrim'), resultScrim = $('resultScrim');
 
 const KEYMAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', Space: 'hardDrop',
@@ -22,29 +35,39 @@ const KEYMAP = {
   KeyC: 'hold', ShiftLeft: 'hold',
 };
 const keys = { ...NO_KEYS };
-let paused = false, started = false;
+let paused = false, started = false, settingsOpen = false;
 
 let renderers = null, match = null, worker = null, ready = false;
 let pendingId = 0, pendingDecision = null, awaiting = false, flyNextAt = 0, lastThinkMs = null;
 let last = 0, rafId = 0;
 
-function tuning() {
-  return { ...DEFAULT_TUNING, gravityMs: Number(gravityEl.value), softDropMs: Number(softEl.value), dasMs: Number(dasEl.value), arrMs: Number(arrEl.value) };
-}
+const tuning = () => ({
+  ...DEFAULT_TUNING,
+  gravityMs: Number(gravityEl.value), softDropMs: Number(softEl.value),
+  dasMs: Number(dasEl.value), arrMs: Number(arrEl.value),
+});
 
-function setBanner(text, tone = '') {
-  bannerEl.textContent = text;
-  bannerEl.className = tone;
-  bannerEl.style.display = text ? 'block' : 'none';
+// ---------- 결과 시트 ----------
+function showResult() {
+  const h = match.human, f = match.fly;
+  $('resultTitle').textContent = match.winner === 'human' ? '사람이 이겼어요' : match.winner === 'fly' ? '초파리가 이겼어요' : '무승부예요';
+  $('resultSub').textContent = match.winner === 'human' ? '초파리가 탑아웃했어요' : match.winner === 'fly' ? '탑아웃했어요' : (match.reason ?? '');
+  $('rPiecesA').textContent = h.pieces; $('rPiecesB').textContent = f.pieces;
+  $('rAttackA').textContent = h.player.stats.attack; $('rAttackB').textContent = f.player.stats.attack;
+  $('rLinesA').textContent = h.player.stats.lines + ' · ' + h.player.stats.tetris;
+  $('rLinesB').textContent = f.player.stats.lines + ' · ' + f.player.stats.tetris;
+  $('rThink').textContent = lastThinkMs !== null ? lastThinkMs + ' ms/수' : '—';
+  resultScrim.classList.add('open');
 }
+const hideResult = () => resultScrim.classList.remove('open');
 
 function newMatch() {
   for (const k of Object.keys(keys)) keys[k] = false; // 직전 판에서 눌려 있던 키가 새 판으로 새지 않게
+  hideResult();
   const seed = (Math.random() * 1e9) | 0;
   match = createMatch({ seedHuman: seed, seedFly: seed, garbageSeed: seed ^ 0x5bf03635, tuning: tuning(), cap: 5000 });
   pendingDecision = null; awaiting = false; pendingId++; lastThinkMs = null;
   flyNextAt = performance.now() + 1200; // 시작 직후 한 박자 여유
-  setBanner('');
   requestFlyDecision();
   draw();
 }
@@ -61,7 +84,9 @@ function onWorkerMessage(ev) {
   const m = ev.data;
   if (m.type === 'ready') {
     ready = true;
-    statusEl.textContent = `초파리 준비됨 — P ${m.P.toLocaleString()} · 간선 ${m.E.toLocaleString()} · 백엔드 ${m.backend} · 로드 ${(m.loadMs / 1000).toFixed(1)}s`;
+    els.fly.badge.textContent = '생각 중';
+    els.fly.badge.className = 'vs-badge';
+    statusEl.textContent = '초파리 준비됐어요 — P ' + m.P.toLocaleString() + ' · 간선 ' + m.E.toLocaleString() + ' · 백엔드 ' + m.backend + ' · 로드 ' + (m.loadMs / 1000).toFixed(1) + '초';
     if (started) requestFlyDecision();
     return;
   }
@@ -70,27 +95,59 @@ function onWorkerMessage(ev) {
     if (m.id !== waitingId) return; // 리매치 등으로 버려진 결정
     pendingDecision = m.cand;
     lastThinkMs = m.ms;
-    thinkEl.textContent = `${m.ms} ms`;
     return;
   }
   if (m.type === 'error') {
     awaiting = false;
-    statusEl.textContent = `초파리 오류: ${m.error}`;
-    setBanner('초파리 워커 오류 — 콘솔 확인', 'bad');
+    els.fly.badge.textContent = '오류';
+    statusEl.textContent = '초파리 오류: ' + m.error;
   }
 }
 
-function draw() {
-  if (!match) return;
-  const over = match.over;
-  renderers.human.draw(viewOf(match, 'human'), { label: '사람', highlight: !over, status: over && match.winner === 'human' ? 'WIN' : '' });
-  renderers.fly.draw(viewOf(match, 'fly'), { label: '초파리 (C0)', highlight: !over, status: lastThinkMs !== null ? `${lastThinkMs} ms/수` : '' });
+// ---------- DOM HUD ----------
+function drawSide(side, view) {
+  const e = els[side];
+  // HOLD
+  e.hold.replaceChildren();
+  if (view.hold === null || view.hold === undefined) {
+    const s = document.createElement('span');
+    s.className = 'empty';
+    s.textContent = '없어요';
+    e.hold.appendChild(s);
+  } else {
+    const g = miniGrid(view.hold, SHAPES, 14);
+    if (view.holdUsed) g.classList.add('used');
+    e.hold.appendChild(g);
+  }
+  // NEXT 5
+  e.next.replaceChildren();
+  for (const p of (view.next ?? []).slice(0, 5)) e.next.appendChild(miniGrid(p, SHAPES, 12));
+  // 대기 가비지 (트랙 높이 대비 비율)
+  const pending = Math.min(20, view.pending ?? 0);
+  e.garbage.style.height = (pending / 20) * 100 + '%';
+  e.garbage.classList.toggle('high', pending >= 4);
+  // COMBO — 판 위에는 이것만 띄운다
+  e.combo.innerHTML = view.combo > 1 ? view.combo + '<span>COMBO</span>' : '';
 }
 
+function draw() {
+  if (!match || !renderers) return;
+  for (const side of ['human', 'fly']) {
+    const view = viewOf(match, side);
+    renderers[side].draw(view);
+    drawSide(side, view);
+  }
+  if (!match.over) {
+    els.human.badge.textContent = paused ? '일시정지' : started ? '두는 중' : '대기 중';
+    els.human.badge.className = paused || !started ? 'vs-badge quiet' : 'vs-badge';
+  }
+}
+
+// ---------- 루프 ----------
 // 한 프레임의 게임 로직. frame() 이 rAF 로 부르고, 테스트에서는 __versus.step(dt) 로 직접 부른다
 // (브라우저 탭이 숨겨지면 rAF 가 멈춰 자동 검증을 할 수 없기 때문).
 function step(dt, now = performance.now()) {
-  if (!match || match.over || paused || !started) { draw(); return; }
+  if (!match || match.over || paused || settingsOpen || !started) { draw(); return; }
 
   match.tuning = tuning();
   tickHuman(match, dt, keys);
@@ -101,15 +158,12 @@ function step(dt, now = performance.now()) {
     if (pendingDecision && now >= flyNextAt) {
       flyPlace(match, pendingDecision);
       pendingDecision = null;
-      flyNextAt = now + Number(speedEl.value);
+      flyNextAt = now + FLY_PLACE_MS;
       if (!match.over) requestFlyDecision();
     }
   }
 
-  if (match.over) {
-    const who = match.winner === 'human' ? '사람 승' : match.winner === 'fly' ? '초파리 승' : '무승부';
-    setBanner(`${who} — ${match.reason}  (R 키로 다시)`, match.winner === 'human' ? 'good' : 'bad');
-  }
+  if (match.over) showResult();
   draw();
 }
 
@@ -121,20 +175,20 @@ function frame(now) {
 }
 
 // ---------- 입력 ----------
-// 슬라이더·버튼이 포커스를 쥐고 있으면 Space 가 버튼을 다시 누르고 화살표가 슬라이더를 움직인다.
-// 게임 키가 들어오면 포커스를 본문으로 돌려놓는다.
 const dropFocus = () => { const a = document.activeElement; if (a && a !== document.body && typeof a.blur === 'function') a.blur(); };
 
 addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && settingsOpen) { closeSettings(); return; }
   const k = KEYMAP[e.code];
   const game = !!k || e.code === 'KeyR' || e.code === 'KeyP';
   if (!game) return;
-  e.preventDefault();          // 스페이스·화살표의 기본 스크롤과 버튼 활성화를 막는다
+  if (settingsOpen) return;     // 설정이 열려 있으면 슬라이더 조작을 방해하지 않는다
+  e.preventDefault();           // 스페이스·화살표의 기본 스크롤과 버튼 활성화를 막는다
   dropFocus();
-  if (e.repeat) return;        // OS 자동 반복은 무시 — 반복은 DAS/ARR 이 담당한다
+  if (e.repeat) return;         // OS 자동 반복은 무시 — 반복은 DAS/ARR 이 담당한다
   if (e.code === 'KeyR') { newMatch(); started = true; return; }
-  if (e.code === 'KeyP') { paused = !paused; setBanner(paused ? '일시정지 (P)' : ''); return; }
-  if (!started) { started = true; setBanner(''); }
+  if (e.code === 'KeyP') { paused = !paused; draw(); return; }
+  if (!started) started = true;
   keys[k] = true;
 }, { passive: false });
 addEventListener('keyup', (e) => {
@@ -144,7 +198,6 @@ addEventListener('keyup', (e) => {
   keys[k] = false;
 }, { passive: false });
 addEventListener('blur', () => { for (const k of Object.keys(keys)) keys[k] = false; });
-// 창 밖으로 나갔다 오면 눌림 상태가 남을 수 있다
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { for (const k of Object.keys(keys)) keys[k] = false; return; }
   // 탭이 숨겨진 동안 rAF 가 멈춘다. 돌아왔을 때 그동안의 시간이 한꺼번에 흐르지 않도록 시계를 다시 맞춘다.
@@ -152,34 +205,51 @@ document.addEventListener('visibilitychange', () => {
   flyNextAt = Math.max(flyNextAt, last + 300);
 });
 
-const bindSlider = (el, out, unit = ' ms') => {
-  const show = () => { out.textContent = `${el.value}${unit}`; };
+const bindSlider = (el, out) => {
+  const show = () => { out.textContent = el.value + ' ms'; };
   el.addEventListener('input', show);
-  el.addEventListener('change', () => { show(); el.blur(); });
   show();
 };
-$('restart').addEventListener('click', (e) => { newMatch(); started = true; e.currentTarget.blur(); });
 
-// ---------- 시작 ----------
-// 한 쪽이 쓰는 셀 수 — 가로: 홀드 5 + 간격 + 가비지 바 + 간격 + 보드 10 + 간격 + 넥스트 5, 세로: 버퍼 2 + 보드 20 + 여백 2.2
-const CELLS_PER_SIDE = 21.8, CELL_ROWS = 24.2;
+function openSettings() { settingsOpen = true; settingsScrim.classList.add('open'); }
+function closeSettings() { settingsOpen = false; settingsScrim.classList.remove('open'); dropFocus(); }
+$('openSettings').addEventListener('click', openSettings);
+$('closeSettings').addEventListener('click', closeSettings);
+settingsScrim.addEventListener('click', (e) => { if (e.target === settingsScrim) closeSettings(); });
+$('restart').addEventListener('click', (e) => { newMatch(); started = true; e.currentTarget.blur(); });
+$('again').addEventListener('click', (e) => { newMatch(); started = true; e.currentTarget.blur(); });
+
+// ---------- 크기 ----------
+// 보드는 10칸 × 22칸(버퍼 2 포함). 패널 안에서 남는 높이·너비에 맞춰 셀 크기를 정한다.
 function pickCell() {
-  const w = Math.max(320, (boardsEl?.clientWidth ?? innerWidth) - 24);   // 보드 사이 간격
-  const h = Math.max(200, (boardsEl?.clientHeight ?? innerHeight) - 4);
-  const byWidth = Math.floor(w / (2 * CELLS_PER_SIDE));
-  const byHeight = Math.floor(h / CELL_ROWS);
-  return Math.max(9, Math.min(26, Math.min(byWidth, byHeight)));
+  const panel = document.querySelector('.vs-play');
+  const h = (panel?.clientHeight ?? 560) - 4;
+  const w = (panel?.clientWidth ?? 420) - 84 - 10 - 28; // 사이드 컬럼 + 가비지 바 + 간격
+  return Math.max(10, Math.min(30, Math.min(Math.floor(h / ROWS), Math.floor(w / WIDTH))));
 }
 function buildRenderers() {
   const cell = pickCell();
   renderers = { human: createRenderer(humanCanvas, { cell }), fly: createRenderer(flyCanvas, { cell }) };
+  // 대기 가비지 바는 보드의 '판' 영역(버퍼 제외)과 같은 높이·위치에 둔다
+  for (const side of ['human', 'fly']) {
+    const track = document.getElementById(side + 'GarbageTrack');
+    if (track) { track.style.marginTop = SHOW_BUFFER * cell + 'px'; track.style.height = HEIGHT * cell + 'px'; }
+  }
   draw();
 }
 addEventListener('resize', () => { if (renderers && pickCell() !== renderers.human.cell) buildRenderers(); });
 
+// 디버그 훅 — 콘솔·자동화에서 상태를 들여다본다 (게임 로직에는 관여하지 않는다)
+globalThis.__versus = {
+  get match() { return match; }, keys,
+  get started() { return started; }, get paused() { return paused; }, get ready() { return ready; },
+  get cell() { return renderers?.human.cell; }, tuning, flyPlaceMs: FLY_PLACE_MS,
+  step,
+  press(code) { dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true })); },
+  release(code) { dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, cancelable: true })); },
+};
+
 function boot() {
-  buildRenderers();
-  bindSlider(speedEl, speedOut);
   bindSlider(gravityEl, gravityOut);
   bindSlider(softEl, softOut);
   bindSlider(dasEl, dasOut);
@@ -187,24 +257,14 @@ function boot() {
 
   worker = new Worker(new URL('./fly-worker.js', import.meta.url), { type: 'module' });
   worker.onmessage = onWorkerMessage;
-  worker.onerror = (e) => { statusEl.textContent = `워커 로드 실패: ${e.message}`; setBanner('초파리 워커를 띄우지 못했다', 'bad'); };
-  statusEl.textContent = '초파리 모델 로드 중…';
+  worker.onerror = (e) => { statusEl.textContent = '워커를 띄우지 못했어요: ' + e.message; els.fly.badge.textContent = '오류'; };
+  statusEl.textContent = '초파리 모델을 불러오는 중이에요';
   worker.postMessage({ type: 'init', base: new URL('../../model', import.meta.url).href });
 
   newMatch();
-  setBanner('아무 키나 눌러 시작 — ←→ 이동 · ↓ 소프트드롭 · Space 하드드롭 · ↑/X 회전 · Z 반대회전 · A 180° · C 홀드 · P 일시정지 · R 리매치');
+  buildRenderers();
   last = performance.now();
   rafId = requestAnimationFrame(frame);
 }
-
-// 디버그 훅 — 콘솔·자동화에서 상태를 들여다본다 (게임 로직에는 관여하지 않는다)
-globalThis.__versus = {
-  get match() { return match; }, keys,
-  get started() { return started; }, get paused() { return paused; }, get ready() { return ready; },
-  get cell() { return renderers?.human.cell; }, tuning,
-  step,                       // 수동 프레임 (테스트용)
-  press(code) { dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true })); },
-  release(code) { dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, cancelable: true })); },
-};
 
 boot();

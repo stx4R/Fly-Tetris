@@ -2,23 +2,86 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<title>Phase B smoke — 브라우저 추론</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase B smoke — Fly</title>
+<meta name="theme-color" content="#ffffff">
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 24px; max-width: 900px; }
-  h1 { font-size: 16px; margin: 0 0 4px; }
-  p.sub { margin: 0 0 16px; opacity: .7; }
-  #status { padding: 8px 10px; border-left: 3px solid currentColor; opacity: .85; }
-  #done { font-weight: 700; margin: 12px 0; }
-  pre { white-space: pre-wrap; word-break: break-all; padding: 12px; border: 1px solid rgba(128,128,128,.4); border-radius: 6px; }
+  /* 개발용 점검 페이지. 번들에 style.css 가 없을 수도 있어 토큰을 여기서 직접 선언한다 (콘솔과 같은 값). */
+  :root {
+    --grey-50: oklch(0.978 0.003 247); --grey-100: oklch(0.957 0.005 247); --grey-200: oklch(0.913 0.008 247);
+    --grey-300: oklch(0.840 0.012 248); --grey-600: oklch(0.555 0.022 253); --grey-700: oklch(0.452 0.028 253);
+    --grey-900: oklch(0.234 0.030 254);
+    --blue-50: oklch(0.965 0.020 250); --blue-500: oklch(0.624 0.176 254);
+    --green-500: oklch(0.493 0.143 154); --green-50: oklch(0.940 0.045 155);
+    --red-500: oklch(0.628 0.218 22);
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 40px 24px 64px; background: var(--grey-100); color: var(--grey-900);
+    font: 15px/1.5 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+    letter-spacing: -0.005em; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; margin: 0; }
+  .lede { font-size: 15px; color: var(--grey-700); margin: 4px 0 0; }
+  .card { background: #fff; border: 1px solid oklch(0 0 0 / 0.08); border-radius: 20px; padding: 20px 24px;
+          display: flex; flex-direction: column; gap: 14px; }
+  .card-head { display: flex; align-items: center; gap: 12px; }
+  .card-head b { font-size: 16px; font-weight: 700; }
+  .card-head .sub { font-size: 13px; color: var(--grey-600); }
+  .chip { margin-left: auto; height: 24px; padding: 0 10px; border-radius: 8px; font-size: 12px; font-weight: 600;
+          display: inline-flex; align-items: center; background: var(--grey-100); color: var(--grey-600); white-space: nowrap; }
+  .chip.run { background: var(--blue-50); color: var(--blue-500); }
+  .chip.ok { background: var(--green-50); color: var(--green-500); }
+  .chip.bad { background: oklch(0.955 0.030 22); color: var(--red-500); }
+  .rows { display: flex; flex-direction: column; }
+  .rows .r { min-height: 44px; display: flex; align-items: center; gap: 12px; }
+  .rows .r span { font-size: 15px; color: var(--grey-700); }
+  .rows .r b { margin-left: auto; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rows .sep { height: 1px; background: var(--grey-200); }
+  pre { margin: 0; padding: 14px 16px; background: var(--grey-50); border-radius: 12px; font: 12px/1.7 var(--mono);
+        color: var(--grey-700); white-space: pre-wrap; word-break: break-all; max-height: 320px; overflow: auto; }
+  .bar { height: 6px; border-radius: 999px; background: var(--grey-200); overflow: hidden; }
+  .bar > div { height: 100%; width: 0; border-radius: 999px; background: var(--blue-500); transition: width 200ms ease; }
 </style>
 </head>
 <body>
-  <h1>7단계 Phase B smoke — 브라우저 추론 일치성 · 성능</h1>
-  <p class="sub">Node 와 같은 src 모듈로 같은 입력을 점수화한다. 지시 §6 항목 2·4.</p>
-  <div id="status">시작 중…</div>
-  <div id="done"></div>
-  <pre id="out"></pre>
+  <div class="wrap">
+    <div>
+      <h1>7단계 Phase B smoke</h1>
+      <p class="lede">브라우저 추론이 Node와 같은 값을 내는지 확인해요.</p>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><b>모델</b><div class="sub" id="modelSub">c0.model.bin 을 불러오는 중이에요</div></div>
+        <span class="chip run" id="loadChip">진행 중</span>
+      </div>
+      <div class="bar"><div id="loadBar"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><b>일치성 · 성능</b><div class="sub">Node 기준값과 비교해요</div></div>
+        <span class="chip" id="resultChip">대기 중</span>
+      </div>
+      <div class="rows">
+        <div class="r"><span>최대 절대 오차</span><b id="mMax">—</b></div>
+        <div class="sep"></div>
+        <div class="r"><span>결정 1회</span><b id="mMs">—</b></div>
+        <div class="sep"></div>
+        <div class="r"><span>백엔드</span><b id="mBackend">—</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div><b>로그</b><div class="sub">아래 JSON 을 phaseb-smoke.js --merge-browser 로 넘겨요</div></div></div>
+      <pre id="status">시작하는 중이에요…</pre>
+      <pre id="out"></pre>
+    </div>
+  </div>
+  <div id="done" hidden></div>
   <script type="module" src="smoke.js"></script>
 </body>
 </html>

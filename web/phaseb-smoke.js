@@ -12,6 +12,10 @@ const TIMING_REPS = 20;
 const out = document.getElementById('out');
 const status = document.getElementById('status');
 const say = (s) => { status.textContent = s; console.log(s); };
+// 토스 리디자인 DOM (없으면 조용히 건너뛴다 — 로직은 그대로)
+const $ = (id) => document.getElementById(id);
+const setChip = (el, text, cls) => { if (!el) return; el.textContent = text; el.className = 'chip' + (cls ? ' ' + cls : ''); };
+const setBar = (pct) => { const b = $('loadBar'); if (b) b.style.width = Math.round(pct * 100) + '%'; };
 
 function maskFor(connectome, condition) {
   if (PHASE_B_NULLS.includes(condition)) return buildMask(buildPhaseBNull(connectome, condition, 0));
@@ -26,8 +30,10 @@ async function run() {
   const reference = await (await fetch('reference.json')).json();
   const uBuf = await (await fetch('inputs.f32')).arrayBuffer();
   const U = Float64Array.from(new Float32Array(uBuf));
+  setBar(0.2);
   say(`커넥톰 로드 중… (입력 ${meta.rows} 행 / ${meta.decisions.length} 결정)`);
   const connectome = parseConnectome(await (await fetch('connectome.json')).text());
+  setBar(0.5);
 
   const models = {};
   for (const kind of meta.models) {
@@ -39,6 +45,9 @@ async function run() {
     const theta = Float64Array.from(new Float32Array(bin, 0, doc.P));
     const model = createSparseRNN(mask, theta, { T: doc.spec.T, lr: doc.spec.lr, hidden: doc.spec.hidden, dnMean: Float64Array.from(doc.spec.dnMean), dnStd: Float64Array.from(doc.spec.dnStd) });
     const maskMs = performance.now() - tm;
+    setBar(0.85);
+    if ($('modelSub')) $('modelSub').textContent = `${kind} · P ${doc.P.toLocaleString()} · 간선 ${mask.E.toLocaleString()} · 마스크 ${Math.round(maskMs)} ms`;
+    setChip($('loadChip'), '불러왔어요', 'ok');
 
     say(`${kind}: 추론 중…`);
     const ref = reference[kind];
@@ -61,6 +70,12 @@ async function run() {
       meanCandidates: meta.rows / meta.decisions.length,
       sharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
     };
+    setBar(1);
+    const pass = maxAbsDiff <= 1e-6;
+    setChip($('resultChip'), pass ? '통과' : '불일치', pass ? 'ok' : 'bad');
+    if ($('mMax')) $('mMax').textContent = maxAbsDiff.toExponential(1).replace('e', 'e−').replace('e−+', 'e+');
+    if ($('mMs')) $('mMs').textContent = `${median(times).toFixed(0)} ms`;
+    if ($('mBackend')) $('mBackend').textContent = model.backend;
     say(`${kind}: maxAbsDiff ${maxAbsDiff.toExponential(3)}, 결정당 ${median(times).toFixed(2)} ms (backend ${model.backend})`);
   }
 

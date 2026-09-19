@@ -3,86 +3,248 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>사람 vs 초파리 — 실시간 테트리스 대전</title>
+<title>대전 — Fly</title>
+<meta name="description" content="초파리 커넥톰 배선 위에서 학습된 가중치와 사람이 같은 대전 엔진으로 겨루는 실시간 테트리스.">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../fonts/pretendard.css">
+<link rel="stylesheet" href="../style.css">
 <style>
-  :root { color-scheme: dark; }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; }
-  body {
-    margin: 0; padding: 12px 16px;
-    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120 60%);
-    color: #e2e8f0; font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    /* 게임 화면은 스크롤되지 않는다 — 조작 중에 화면이 밀려나면 플레이가 불가능하다 */
-    height: 100dvh; overflow: hidden; overscroll-behavior: none;
-    display: flex; flex-direction: column; gap: 10px; align-items: center;
+  /* 대전 화면 — 콘솔과 같은 토큰(style.css) 위에 올린다. 게임 화면은 스크롤되지 않는다. */
+  html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+  .app { min-height: 100vh; height: 100vh; }
+  .vs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; }
+
+  .vs-head { min-height: 72px; background: var(--surface); border-bottom: 1px solid var(--line);
+             display: flex; align-items: center; gap: 12px 16px; padding: 12px 32px; flex: 0 0 auto; }
+  .vs-head h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.3; }
+  .vs-head .spacer { margin-left: auto; }
+  .btn { height: 40px; padding: 0 16px; border: 0; border-radius: var(--r-m); font: 600 15px var(--font);
+         cursor: pointer; transition: background var(--dur-base) var(--ease); }
+  .btn-quiet { background: var(--grey-100); color: var(--text); }
+  .btn-quiet:hover { background: var(--grey-150, var(--grey-200)); }
+  .btn-brand { background: var(--brand); color: #fff; }
+  .btn-brand:hover { background: var(--brand-press); }
+  .btn-xl { height: 56px; border-radius: var(--r-xl); font-size: 17px; font-weight: 700; width: 100%; }
+
+  .vs-body { flex: 1; min-height: 0; padding: 24px 32px 28px; background: var(--bg); display: flex; }
+  .vs-row { display: flex; gap: 16px; align-items: stretch; width: 100%; min-height: 0; }
+  .vs-panel { flex: 1; min-width: 0; background: var(--surface); border: 1px solid oklch(0 0 0 / 0.08);
+              border-radius: var(--r-2xl); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+
+  .vs-phead { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+  .vs-avatar { width: 44px; height: 44px; border-radius: var(--r-l); display: grid; place-items: center; flex: 0 0 auto; }
+  .vs-avatar.me { background: var(--brand-weak); color: var(--brand); font-size: 13px; font-weight: 700; }
+  .vs-avatar.fly { background: var(--grey-100); font-size: 20px; }
+  .vs-who { min-width: 0; }
+  .vs-who b { font-size: 15px; display: block; line-height: 1.3; }
+  .vs-who span { font-size: 13px; color: var(--text-3); }
+  .vs-badge { margin-left: auto; height: 22px; padding: 0 8px; border-radius: var(--r-s);
+              background: var(--brand-weak); color: var(--brand); font-size: 12px; font-weight: 600;
+              display: inline-flex; align-items: center; white-space: nowrap; }
+  .vs-badge.quiet { background: var(--grey-100); color: var(--text-3); }
+
+  .vs-play { display: flex; gap: 14px; align-items: flex-start; justify-content: center; flex: 1; min-height: 0; }
+  .vs-side { width: 84px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; }
+  .vs-lab { font-size: 12px; font-weight: 600; color: var(--text-3); }
+  .vs-holdbox { height: 64px; border-radius: var(--r-m); background: var(--grey-100); display: grid; place-items: center; }
+  .vs-holdbox .empty { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+  .vs-nextbox { border-radius: var(--r-m); background: var(--grey-100); padding: 12px 0;
+                display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .vs-mini { display: grid; gap: 2px; }
+  .vs-mini > div { border-radius: 3px; }
+  .vs-holdbox .vs-mini.used > div { opacity: 0.35; }
+
+  .vs-garbage { width: 10px; flex: 0 0 auto; border-radius: var(--r-full); background: var(--grey-200);
+                position: relative; overflow: hidden; align-self: flex-start; }
+  .vs-garbage > div { position: absolute; left: 0; right: 0; bottom: 0; border-radius: var(--r-full);
+                      background: var(--orange-500, oklch(0.748 0.183 56)); transition: height 90ms var(--ease); }
+  .vs-garbage > div.high { background: oklch(0.628 0.218 22); }
+
+  .vs-boardwrap { position: relative; flex: 0 0 auto; }
+  .vs-boardwrap canvas { display: block; border-radius: var(--r-m); }
+  .vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: 38px; font-weight: 700;
+              letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; pointer-events: none; }
+  .vs-combo span { font-size: 15px; font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+
+  /* 스크림 + 시트/모달 */
+  .scrim { position: fixed; inset: 0; background: oklch(0 0 0 / 0.56); display: none; z-index: 20; }
+  .scrim.open { display: flex; }
+  #settingsScrim { align-items: center; justify-content: center; padding: 40px; }
+  .modal { width: 660px; max-width: 100%; background: var(--surface); border-radius: var(--r-2xl); padding: 24px;
+           box-shadow: 0 12px 32px oklch(0.155 0.060 261 / 0.10), 0 2px 6px oklch(0.155 0.060 261 / 0.06);
+           display: flex; flex-direction: column; gap: 20px; max-height: 100%; overflow: auto; }
+  .modal h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+  .modal .sub { font-size: 15px; color: var(--text-2); margin-top: 4px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
+  .fld { display: flex; flex-direction: column; gap: 6px; min-width: 150px; }
+  .fld .top { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .fld .top output { font-variant-numeric: tabular-nums; color: var(--text); }
+  .fld input[type=range] { width: 100%; accent-color: var(--brand); }
+  .keys { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 13px; color: var(--text-2); }
+  .keys span { display: inline-flex; align-items: center; gap: 5px; }
+  kbd { font: 500 11.5px var(--mono, ui-monospace, Menlo, monospace); background: var(--grey-100);
+        border: 1px solid var(--line); border-bottom-width: 2px; border-radius: var(--r-xs); padding: 1px 6px; color: var(--text); }
+
+  #resultScrim { align-items: flex-end; justify-content: center; }
+  .sheet { width: 100%; max-width: 520px; background: var(--surface); border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+           padding: 24px 24px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .sheet .title { text-align: center; }
+  .sheet .title b { font-size: 20px; font-weight: 700; letter-spacing: -0.015em; }
+  .sheet .title div { font-size: 15px; color: var(--text-2); margin-top: 4px; }
+  .rows { display: flex; flex-direction: column; }
+  .rows .r { min-height: 44px; display: flex; align-items: center; gap: 12px; }
+  .rows .r span.k { font-size: 15px; color: var(--text-2); }
+  .rows .r b { margin-left: auto; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rows .r b.brand { color: var(--brand); }
+  .rows .r span.v2 { font-size: 13px; color: var(--text-3); width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+  .rows .sep { height: 1px; background: var(--line); }
+  .legend { text-align: center; font-size: 12px; color: var(--text-3); }
+
+  #status { flex: 0 0 auto; padding: 0 32px 10px; background: var(--bg);
+            font: 11.5px var(--mono, ui-monospace, Menlo, monospace); color: var(--text-3); text-align: center; }
+
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .vs-body { padding: 16px; }
+    .vs-row { gap: 10px; }
+    .vs-panel { padding: 14px; }
   }
-  header { width: 100%; max-width: 1180px; flex: 0 0 auto; }
-  h1 { font-size: 16px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
-  .sub { color: #94a3b8; font-size: 12px; margin: 0; }
-  .sub a { color: #93c5fd; }
-  /* 보드 영역이 남는 높이를 전부 먹고, 그 높이에 맞춰 셀 크기를 정한다 */
-  #boards { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; gap: 24px; justify-content: center; align-items: center; }
-  canvas { border-radius: 10px; background: rgba(2,6,23,0.35); display: block; }
-  .bar {
-    flex: 0 0 auto; width: 100%; max-width: 1180px; display: flex; gap: 18px; flex-wrap: wrap;
-    align-items: center; justify-content: center;
-    padding: 8px 14px; border: 1px solid rgba(148,163,184,0.22); border-radius: 10px; background: rgba(15,23,42,0.5);
-  }
-  .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #cbd5e1; white-space: nowrap; }
-  .ctl output { color: #e2e8f0; font: 12px ui-monospace, monospace; min-width: 58px; }
-  input[type=range] { width: 130px; accent-color: #60a5fa; }
-  button {
-    font: 12.5px ui-sans-serif, system-ui, sans-serif; color: #e2e8f0; cursor: pointer;
-    background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3); border-radius: 7px; padding: 5px 12px;
-  }
-  button:hover { background: rgba(71,85,105,0.9); }
-  #status { flex: 0 0 auto; color: #94a3b8; font: 11.5px ui-monospace, monospace; text-align: center; }
-  #banner {
-    position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 5;
-    max-width: min(680px, 92vw); text-align: center; padding: 12px 18px; border-radius: 10px;
-    background: rgba(15,23,42,0.94); border: 1px solid rgba(148,163,184,0.3); font-size: 13px; color: #cbd5e1;
-    box-shadow: 0 12px 40px rgba(0,0,0,0.5); pointer-events: none;
-  }
-  #banner.good { background: rgba(20,83,45,0.94); border-color: rgba(74,222,128,0.5); color: #dcfce7; }
-  #banner.bad { background: rgba(127,29,29,0.94); border-color: rgba(248,113,113,0.5); color: #fee2e2; }
-  kbd { font: 11px ui-monospace, monospace; background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3);
-        border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: #e2e8f0; }
-  .keys { color: #64748b; font-size: 11.5px; }
 </style>
 </head>
 <body>
-  <header>
-    <h1>사람 vs 초파리 — 실시간 테트리스 대전</h1>
-    <p class="sub">
-      초파리 쪽은 초파리 커넥톰의 <strong>배선(희소 마스크)</strong> 위에서 학습된 가중치로 매 수를 고른다.
-      규칙·공격표·가비지는 양쪽 모두 같은 대전 엔진을 쓴다. <a href="../index.html">← 시각화 콘솔</a>
-    </p>
-  </header>
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="../index.html" aria-label="Fly 홈">
+      <div class="brand-mark" aria-hidden="true">🪰</div>
+      <div><div class="brand-name">Fly</div><div class="brand-sub">커넥톰 리저버</div></div>
+    </a>
+    <nav class="nav" aria-label="주 메뉴">
+      <a href="../index.html#/">홈</a>
+      <a class="nav-play" href="versus.html" aria-current="page">대전<span>사람 vs 초파리</span></a>
+      <a href="../index.html#/experiments">실험</a>
+      <a href="../index.html#/connectome">커넥톰</a>
+      <a href="../index.html#/decision">결정 탐색</a>
+      <a href="../index.html#/compare">조건 비교</a>
+      <a href="../index.html#/settings">설정</a>
+    </nav>
+    <div class="sidebar-foot">
+      <div class="info-card"><b>hemibrain v1.2.1</b><span>8,000 뉴런 · 459,168 시냅스</span></div>
+      <a class="source-row" href="https://github.com/stx4R/Fly" target="_blank" rel="noopener">
+        <div class="source-avatar"><img src="../avatar.png" alt="" width="36" height="36"></div>
+        <div><b>stx4R/Fly</b></div>
+      </a>
+    </div>
+  </aside>
 
-  <div id="boards">
-    <canvas id="human"></canvas>
-    <canvas id="fly"></canvas>
+  <main class="vs-main">
+    <header class="vs-head">
+      <h1>대전</h1>
+      <button id="openSettings" class="btn btn-quiet" type="button">설정</button>
+      <div class="spacer"></div>
+      <button id="restart" class="btn btn-brand" type="button">리매치</button>
+    </header>
+
+    <div class="vs-body">
+      <div class="vs-row">
+        <section class="vs-panel">
+          <div class="vs-phead">
+            <div class="vs-avatar me">나</div>
+            <div class="vs-who"><b>사람</b><span>키보드</span></div>
+            <span class="vs-badge" id="humanBadge">두는 중</span>
+          </div>
+          <div class="vs-play">
+            <div class="vs-side">
+              <div class="vs-lab">HOLD</div>
+              <div class="vs-holdbox" id="humanHold"></div>
+              <div class="vs-lab">NEXT</div>
+              <div class="vs-nextbox" id="humanNext"></div>
+            </div>
+            <div class="vs-garbage" id="humanGarbageTrack"><div id="humanGarbage" style="height:0"></div></div>
+            <div class="vs-boardwrap">
+              <canvas id="human"></canvas>
+              <div class="vs-combo" id="humanCombo"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="vs-panel">
+          <div class="vs-phead">
+            <div class="vs-avatar fly">🪰</div>
+            <div class="vs-who"><b>초파리 C0</b><span>커넥톰 배선 위 학습 가중치</span></div>
+            <span class="vs-badge quiet" id="flyBadge">모델 로드 중</span>
+          </div>
+          <div class="vs-play">
+            <div class="vs-side">
+              <div class="vs-lab">HOLD</div>
+              <div class="vs-holdbox" id="flyHold"></div>
+              <div class="vs-lab">NEXT</div>
+              <div class="vs-nextbox" id="flyNext"></div>
+            </div>
+            <div class="vs-garbage" id="flyGarbageTrack"><div id="flyGarbage" style="height:0"></div></div>
+            <div class="vs-boardwrap">
+              <canvas id="fly"></canvas>
+              <div class="vs-combo" id="flyCombo"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div id="status">초기화 중이에요</div>
+  </main>
+</div>
+
+<div class="scrim" id="settingsScrim">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div>
+      <h2 id="settingsTitle">조작 설정</h2>
+      <div class="sub">입력 감도를 정해요</div>
+    </div>
+    <div class="grid2">
+      <label class="fld"><span class="top">중력<output id="gravityOut"></output></span>
+        <input id="gravity" type="range" min="100" max="1500" step="50" value="800"></label>
+      <label class="fld"><span class="top">소프트드롭<output id="softOut"></output></span>
+        <input id="soft" type="range" min="4" max="60" step="2" value="12"></label>
+      <label class="fld"><span class="top">DAS<output id="dasOut"></output></span>
+        <input id="das" type="range" min="40" max="220" step="10" value="120"></label>
+      <label class="fld"><span class="top">ARR<output id="arrOut"></output></span>
+        <input id="arr" type="range" min="0" max="80" step="1" value="12"></label>
+    </div>
+    <div>
+      <div class="vs-lab" style="margin-bottom:8px">조작키</div>
+      <div class="keys">
+        <span><kbd>←</kbd><kbd>→</kbd> 이동</span>
+        <span><kbd>↓</kbd> 소프트드롭</span>
+        <span><kbd>Space</kbd> 하드드롭</span>
+        <span><kbd>↑</kbd><kbd>X</kbd> 회전</span>
+        <span><kbd>Z</kbd> 반대회전</span>
+        <span><kbd>A</kbd> 180°</span>
+        <span><kbd>C</kbd> 홀드</span>
+        <span><kbd>P</kbd> 일시정지</span>
+        <span><kbd>R</kbd> 리매치</span>
+      </div>
+    </div>
+    <button id="closeSettings" class="btn btn-brand btn-xl" type="button">확인</button>
   </div>
+</div>
 
-  <div id="banner"></div>
-
-  <div class="bar">
-    <div class="ctl"><label for="speed">초파리 착수</label><input id="speed" type="range" min="150" max="2000" step="50" value="600"><output id="speedOut"></output></div>
-    <div class="ctl"><label for="gravity">중력</label><input id="gravity" type="range" min="100" max="1500" step="50" value="800"><output id="gravityOut"></output></div>
-    <div class="ctl"><label for="soft">소프트드롭</label><input id="soft" type="range" min="4" max="60" step="2" value="12"><output id="softOut"></output></div>
-    <div class="ctl"><label for="das">DAS</label><input id="das" type="range" min="40" max="220" step="10" value="120"><output id="dasOut"></output></div>
-    <div class="ctl"><label for="arr">ARR</label><input id="arr" type="range" min="0" max="80" step="1" value="12"><output id="arrOut"></output></div>
-    <div class="ctl">생각 <output id="think">—</output></div>
-    <button id="restart" type="button">리매치 (R)</button>
+<div class="scrim" id="resultScrim">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="resultTitle">
+    <div class="title"><b id="resultTitle">—</b><div id="resultSub"></div></div>
+    <div class="rows">
+      <div class="r"><span class="k">조각</span><b id="rPiecesA">0</b><span class="v2" id="rPiecesB">0</span></div>
+      <div class="sep"></div>
+      <div class="r"><span class="k">공격</span><b class="brand" id="rAttackA">0</b><span class="v2" id="rAttackB">0</span></div>
+      <div class="sep"></div>
+      <div class="r"><span class="k">줄 · 테트리스</span><b id="rLinesA">0 · 0</b><span class="v2" id="rLinesB">0 · 0</span></div>
+      <div class="sep"></div>
+      <div class="r"><span class="k">초파리 생각</span><b id="rThink">—</b><span class="v2"></span></div>
+    </div>
+    <div class="legend">왼쪽이 사람, 오른쪽 옅은 값이 초파리예요</div>
+    <button id="again" class="btn btn-brand btn-xl" type="button">다시 하기</button>
   </div>
+</div>
 
-  <div class="keys">
-    <kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↓</kbd> 소프트드롭 · <kbd>Space</kbd> 하드드롭 ·
-    <kbd>↑</kbd>/<kbd>X</kbd> 회전 · <kbd>Z</kbd> 반대회전 · <kbd>A</kbd> 180° · <kbd>C</kbd> 홀드 ·
-    <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 리매치
-  </div>
-  <div id="status">초기화 중…</div>
-
-  <script type="module" src="web/play/main.js"></script>
+<script type="module" src="web/play/main.js"></script>
 </body>
 </html>
