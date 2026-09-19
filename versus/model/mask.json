@@ -1,0 +1,25 @@
+{
+ "N": 8000,
+ "E": 459168,
+ "nInput": 2316,
+ "nOutput": 107,
+ "outputStart": 7893,
+ "rhoUnit": 0.9996625020887736,
+ "condition": {
+  "type": "C0"
+ },
+ "layout": {
+  "indptr": {
+   "offset": 0,
+   "length": 8001,
+   "dtype": "int32"
+  },
+  "indices": {
+   "offset": 32004,
+   "length": 459168,
+   "dtype": "int32"
+  }
+ },
+ "note": "추론 전용 마스크. wUnit 은 학습 초기화용이라 뺐다 (createSparseRNN 은 쓰지 않는다).",
+ "builtAt": "2026-09-19T13:21:48.149Z"
+}

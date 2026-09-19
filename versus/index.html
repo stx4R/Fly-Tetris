@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사람 vs 초파리 — 실시간 테트리스 대전</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; padding: 12px 16px;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e293b, #0b1120 60%);
+    color: #e2e8f0; font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* 게임 화면은 스크롤되지 않는다 — 조작 중에 화면이 밀려나면 플레이가 불가능하다 */
+    height: 100dvh; overflow: hidden; overscroll-behavior: none;
+    display: flex; flex-direction: column; gap: 10px; align-items: center;
+  }
+  header { width: 100%; max-width: 1180px; flex: 0 0 auto; }
+  h1 { font-size: 16px; margin: 0 0 2px; font-weight: 650; letter-spacing: -0.01em; }
+  .sub { color: #94a3b8; font-size: 12px; margin: 0; }
+  .sub a { color: #93c5fd; }
+  /* 보드 영역이 남는 높이를 전부 먹고, 그 높이에 맞춰 셀 크기를 정한다 */
+  #boards { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; gap: 24px; justify-content: center; align-items: center; }
+  canvas { border-radius: 10px; background: rgba(2,6,23,0.35); display: block; }
+  .bar {
+    flex: 0 0 auto; width: 100%; max-width: 1180px; display: flex; gap: 18px; flex-wrap: wrap;
+    align-items: center; justify-content: center;
+    padding: 8px 14px; border: 1px solid rgba(148,163,184,0.22); border-radius: 10px; background: rgba(15,23,42,0.5);
+  }
+  .ctl { display: flex; align-items: center; gap: 7px; font-size: 12px; color: #cbd5e1; white-space: nowrap; }
+  .ctl output { color: #e2e8f0; font: 12px ui-monospace, monospace; min-width: 58px; }
+  input[type=range] { width: 130px; accent-color: #60a5fa; }
+  button {
+    font: 12.5px ui-sans-serif, system-ui, sans-serif; color: #e2e8f0; cursor: pointer;
+    background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3); border-radius: 7px; padding: 5px 12px;
+  }
+  button:hover { background: rgba(71,85,105,0.9); }
+  #status { flex: 0 0 auto; color: #94a3b8; font: 11.5px ui-monospace, monospace; text-align: center; }
+  #banner {
+    position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 5;
+    max-width: min(680px, 92vw); text-align: center; padding: 12px 18px; border-radius: 10px;
+    background: rgba(15,23,42,0.94); border: 1px solid rgba(148,163,184,0.3); font-size: 13px; color: #cbd5e1;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5); pointer-events: none;
+  }
+  #banner.good { background: rgba(20,83,45,0.94); border-color: rgba(74,222,128,0.5); color: #dcfce7; }
+  #banner.bad { background: rgba(127,29,29,0.94); border-color: rgba(248,113,113,0.5); color: #fee2e2; }
+  kbd { font: 11px ui-monospace, monospace; background: rgba(51,65,85,0.8); border: 1px solid rgba(148,163,184,0.3);
+        border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; color: #e2e8f0; }
+  .keys { color: #64748b; font-size: 11.5px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>사람 vs 초파리 — 실시간 테트리스 대전</h1>
+    <p class="sub">
+      초파리 쪽은 초파리 커넥톰의 <strong>배선(희소 마스크)</strong> 위에서 학습된 가중치로 매 수를 고른다.
+      규칙·공격표·가비지는 양쪽 모두 같은 대전 엔진을 쓴다. <a href="../index.html">← 시각화 콘솔</a>
+    </p>
+  </header>
+
+  <div id="boards">
+    <canvas id="human"></canvas>
+    <canvas id="fly"></canvas>
+  </div>
+
+  <div id="banner"></div>
+
+  <div class="bar">
+    <div class="ctl"><label for="speed">초파리 착수</label><input id="speed" type="range" min="150" max="2000" step="50" value="600"><output id="speedOut"></output></div>
+    <div class="ctl"><label for="gravity">중력</label><input id="gravity" type="range" min="100" max="1500" step="50" value="800"><output id="gravityOut"></output></div>
+    <div class="ctl"><label for="das">DAS</label><input id="das" type="range" min="40" max="220" step="10" value="130"><output id="dasOut"></output></div>
+    <div class="ctl"><label for="arr">ARR</label><input id="arr" type="range" min="0" max="80" step="5" value="20"><output id="arrOut"></output></div>
+    <div class="ctl">생각 <output id="think">—</output></div>
+    <button id="restart" type="button">리매치 (R)</button>
+  </div>
+
+  <div class="keys">
+    <kbd>←</kbd><kbd>→</kbd> 이동 · <kbd>↓</kbd> 소프트드롭 · <kbd>Space</kbd> 하드드롭 ·
+    <kbd>↑</kbd>/<kbd>X</kbd> 회전 · <kbd>Z</kbd> 반대회전 · <kbd>A</kbd> 180° · <kbd>C</kbd> 홀드 ·
+    <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 리매치
+  </div>
+  <div id="status">초기화 중…</div>
+
+  <script type="module" src="web/play/main.js"></script>
+</body>
+</html>
