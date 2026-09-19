@@ -1,0 +1,28 @@
+{
+ "variant": "1ply-hold-garbage",
+ "label": "1-ply + hold candidates, garbage-tuned (A-4′ teacher)",
+ "tunedAt": "2026-09-18T11:43:23.731Z",
+ "search": {
+  "ply": 1,
+  "depth": 1,
+  "width": 1,
+  "hold": true
+ },
+ "params": {
+  "weights": {
+   "landingHeight": -2.218258040848717,
+   "erodedPieceCells": -1.3633262676678162,
+   "attackSent": 17.894168703135335,
+   "comboState": 1.154995117932238,
+   "rowTransitions": -1.397515150135254,
+   "columnTransitions": -12.155606649602229,
+   "holes": -15.660598719723417,
+   "cumulativeWells": -0.6309904488437688,
+   "wellDepth": 15.964648157289773,
+   "tspinSetup": 4.244133455497658,
+   "garbageQueueHeight": 0.4613663026569426
+  },
+  "dangerHeight": 16
+ },
+ "note": "학생이 모방하도록 학습된 교사. 브라우저는 depth 1 로만 쓴다 (scoreCandidates)."
+}
