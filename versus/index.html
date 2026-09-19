@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="../style.css">
 <style>
   /* 대전 화면 — 콘솔과 같은 토큰(style.css) 위에 올린다. 게임 화면은 스크롤되지 않는다. */
+  :root { --cell: 30px; }
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   .app { min-height: 100vh; height: 100vh; }
   .vs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100vh; }
@@ -28,8 +29,9 @@
   .btn-xl { height: 56px; border-radius: var(--r-xl); font-size: 17px; font-weight: 700; width: 100%; }
 
   .vs-body { flex: 1; min-height: 0; padding: 24px 32px 28px; background: var(--bg); display: flex; }
-  .vs-row { display: flex; gap: 16px; align-items: stretch; width: 100%; min-height: 0; }
-  .vs-panel { flex: 1; min-width: 0; background: var(--surface); border: 1px solid oklch(0 0 0 / 0.08);
+  .vs-row { display: flex; gap: 16px; align-items: stretch; justify-content: center; width: 100%; min-height: 0; }
+  /* 패널은 내용 폭에 맞춘다 — 보드가 10:22 비율이라 늘리면 안쪽에 죽은 여백이 생긴다 */
+  .vs-panel { flex: 0 0 auto; background: var(--surface); border: 1px solid oklch(0 0 0 / 0.08);
               border-radius: var(--r-2xl); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 
   .vs-phead { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
@@ -44,28 +46,29 @@
               display: inline-flex; align-items: center; white-space: nowrap; }
   .vs-badge.quiet { background: var(--grey-100); color: var(--text-3); }
 
-  .vs-play { display: flex; gap: 14px; align-items: flex-start; justify-content: center; flex: 1; min-height: 0; }
-  .vs-side { width: 84px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; }
-  .vs-lab { font-size: 12px; font-weight: 600; color: var(--text-3); }
-  .vs-holdbox { height: 64px; border-radius: var(--r-m); background: var(--grey-100); display: grid; place-items: center; }
-  .vs-holdbox .empty { font-size: 11px; color: var(--text-3); white-space: nowrap; }
-  .vs-nextbox { border-radius: var(--r-m); background: var(--grey-100); padding: 12px 0;
-                display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  /* 아래 치수는 모두 --cell 에 비례한다 (시안 비율, 셀 30px 기준: side 84 · hold 64 · gap 14 · 가비지 10) */
+  .vs-play { display: flex; gap: calc(var(--cell) * 0.4667); align-items: flex-start; justify-content: center; flex: 1; min-height: 0; }
+  .vs-side { width: calc(var(--cell) * 2.8); flex: 0 0 auto; display: flex; flex-direction: column; gap: calc(var(--cell) * 0.333); }
+  .vs-lab { font-size: clamp(11px, calc(var(--cell) * 0.4), 16px); font-weight: 600; color: var(--text-3); }
+  .vs-holdbox { height: calc(var(--cell) * 2.133); border-radius: calc(var(--cell) * 0.4); background: var(--grey-100); display: grid; place-items: center; }
+  .vs-holdbox .empty { font-size: clamp(10px, calc(var(--cell) * 0.36), 14px); color: var(--text-3); white-space: nowrap; }
+  .vs-nextbox { border-radius: calc(var(--cell) * 0.4); background: var(--grey-100); padding: calc(var(--cell) * 0.4) 0;
+                display: flex; flex-direction: column; gap: calc(var(--cell) * 0.4); align-items: center; }
   .vs-mini { display: grid; gap: 2px; }
-  .vs-mini > div { border-radius: 3px; }
+  .vs-mini > div { border-radius: calc(var(--cell) * 0.1); }
   .vs-holdbox .vs-mini.used > div { opacity: 0.35; }
 
-  .vs-garbage { width: 10px; flex: 0 0 auto; border-radius: var(--r-full); background: var(--grey-200);
+  .vs-garbage { width: calc(var(--cell) * 0.333); flex: 0 0 auto; border-radius: var(--r-full); background: var(--grey-200);
                 position: relative; overflow: hidden; align-self: flex-start; }
   .vs-garbage > div { position: absolute; left: 0; right: 0; bottom: 0; border-radius: var(--r-full);
                       background: var(--orange-500, oklch(0.748 0.183 56)); transition: height 90ms var(--ease); }
   .vs-garbage > div.high { background: oklch(0.628 0.218 22); }
 
   .vs-boardwrap { position: relative; flex: 0 0 auto; }
-  .vs-boardwrap canvas { display: block; border-radius: var(--r-m); }
-  .vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: 38px; font-weight: 700;
+  .vs-boardwrap canvas { display: block; border-radius: calc(var(--cell) * 0.4); }
+  .vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: calc(var(--cell) * 1.27); font-weight: 700;
               letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; pointer-events: none; }
-  .vs-combo span { font-size: 15px; font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+  .vs-combo span { font-size: calc(var(--cell) * 0.5); font-weight: 600; letter-spacing: 0; margin-left: 4px; }
 
   /* 스크림 + 시트/모달 */
   .scrim { position: fixed; inset: 0; background: oklch(0 0 0 / 0.56); display: none; z-index: 20; }
@@ -100,9 +103,6 @@
   .rows .r span.v2 { font-size: 13px; color: var(--text-3); width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
   .rows .sep { height: 1px; background: var(--line); }
   .legend { text-align: center; font-size: 12px; color: var(--text-3); }
-
-  #status { flex: 0 0 auto; padding: 0 32px 10px; background: var(--bg);
-            font: 11.5px var(--mono, ui-monospace, Menlo, monospace); color: var(--text-3); text-align: center; }
 
   @media (max-width: 900px) {
     .sidebar { display: none; }
@@ -190,7 +190,6 @@
         </section>
       </div>
     </div>
-    <div id="status">초기화 중이에요</div>
   </main>
 </div>
 
