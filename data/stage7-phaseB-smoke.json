@@ -1,0 +1,122 @@
+{
+ "ranAt": "2026-09-19T08:42:16.054Z",
+ "phase": "B",
+ "gateStatus": null,
+ "forcedPhaseB": null,
+ "refInputs": {
+  "rows": 973,
+  "decisions": 21,
+  "uDim": 256,
+  "tolerance": 0.000001
+ },
+ "frameBudgetMs": 16.666666666666668,
+ "models": [
+  {
+   "model": "C0",
+   "file": "data\\stage7\\c0.model.json",
+   "P": 1067041,
+   "maskHash": "adb8e02d43dc1ab5",
+   "binHash": "064359650565c417",
+   "gateStatus": null,
+   "forcedPhaseB": null,
+   "maskType": "C0",
+   "checks": [
+    {
+     "name": ".bin 크기 = 4·P",
+     "ok": true,
+     "detail": "4268164 vs 4268164"
+    },
+    {
+     "name": "P 가 마스크에서 재계산한 값과 일치",
+     "ok": true,
+     "detail": "1067041 vs 1067041"
+    },
+    {
+     "name": "마스크 규격(N/E/nInput/nOutput) 이 JSON 메타와 일치",
+     "ok": true,
+     "detail": "N 8000/8000 E 459168/459168"
+    },
+    {
+     "name": "rho_unit 일치",
+     "ok": true,
+     "detail": "0.9996625020887736 vs 0.9996625020887736"
+    },
+    {
+     "name": "Node 에서 모델 인스턴스 생성",
+     "ok": true,
+     "detail": "backend wasm"
+    },
+    {
+     "name": "같은 시드 두 번 → 조각 시퀀스 동일",
+     "ok": true,
+     "detail": "300 결정"
+    },
+    {
+     "name": "같은 시드 두 번 → 행동 시퀀스 동일",
+     "ok": true,
+     "detail": "300 결정"
+    },
+    {
+     "name": "model.json 에 마스크 식별자",
+     "ok": true,
+     "detail": "condition C0"
+    }
+   ],
+   "load": true,
+   "determinism": {
+    "pieces": true,
+    "actions": true,
+    "decisions": 300
+   },
+   "nodeTiming": {
+    "decisions": 420,
+    "medianMs": 381.34604999999283,
+    "p99Ms": 594.9045000000042,
+    "meanCandidates": 46.333333333333336,
+    "backend": "wasm"
+   },
+   "size": {
+    "binBytes": 4268164,
+    "gzipBytes": 3970648,
+    "jsonBytes": 12838,
+    "binMB": 4.07,
+    "gzipMB": 3.79
+   },
+   "browser": {
+    "P": 1067041,
+    "backend": "js",
+    "maskBuildMs": 676,
+    "compared": 973,
+    "maxAbsDiff": 1.4210854715202004e-14,
+    "maxRelDiff": 5.6474009216422616e-14,
+    "medianMs": 1233.0999999940395,
+    "p99Ms": 2420.800000011921,
+    "samples": 420,
+    "meanCandidates": 46.333333333333336,
+    "sharedArrayBuffer": false,
+    "note": "N1 학습이 12 코어를 점유한 상태에서 측정 — 유휴 상태 재측정 필요"
+   }
+  }
+ ],
+ "webDefault": {
+  "checked": [
+   {
+    "file": "scripts/build-web.js",
+    "mentionsNullModel": false
+   }
+  ],
+  "ok": true,
+  "note": "빌드가 null 모델을 참조하지 않는다 (기본 로드는 C0)"
+ },
+ "browserBundle": "web/dist/phaseb-smoke",
+ "browser": {
+  "done": true,
+  "ranAt": "2026-09-19T08:52:11.322Z",
+  "userAgent": "Chrome/152.0.7977.76 (Claude desktop, Win64)",
+  "backend": "js",
+  "maxAbsDiff": 1.4210854715202004e-14,
+  "tolerance": 0.000001,
+  "parity": true,
+  "note": "Node 와 브라우저 추론이 허용오차 안에서 일치"
+ }
+}

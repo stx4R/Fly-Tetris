@@ -1,0 +1,126 @@
+{
+ "builtAt": "2026-09-19T08:18:31.422Z",
+ "kind": "N1",
+ "name": "degree-preserving shuffle",
+ "separates": "커넥톰의 구체적 연결 패턴 (차수 분포는 보존)",
+ "seed": 0,
+ "reproduce": "node scripts/phaseb-masks.js --only N1 --seed 0  (src/stage7-nulls.js buildPhaseBNull; 결정적)",
+ "condition": {
+  "type": "N1",
+  "name": "degree-preserving shuffle",
+  "seed": 0,
+  "swapAttempts": 4591680,
+  "swapsAccepted": 4291545
+ },
+ "fingerprint": {
+  "edges": "8d64037092df6e99",
+  "inputNeurons": "48b7507b6363af1a",
+  "readoutNeurons": "e5f4b020d4e339f4"
+ },
+ "c0Fingerprint": {
+  "edges": "25821b012ecbc248",
+  "inputNeurons": "48b7507b6363af1a",
+  "readoutNeurons": "e5f4b020d4e339f4"
+ },
+ "sanity": {
+  "kind": "N1",
+  "name": "degree-preserving shuffle",
+  "separates": "커넥톰의 구체적 연결 패턴 (차수 분포는 보존)",
+  "N": 8000,
+  "E": 459168,
+  "P": 1067041,
+  "expectedP": 1067041,
+  "nInput": 2316,
+  "nOutput": 107,
+  "edgeOverlapWithOriginal": 0.029427137779636212,
+  "chanceOverlap": 0.007175396924615577,
+  "degreeIdentical": true,
+  "inDegree": {
+   "min": 0,
+   "median": 42,
+   "max": 1134,
+   "mean": 57.4
+  },
+  "outDegree": {
+   "min": 0,
+   "median": 45,
+   "max": 1133,
+   "mean": 57.4
+  },
+  "inDegreeOriginal": {
+   "min": 0,
+   "median": 42,
+   "max": 1134,
+   "mean": 57.4
+  },
+  "outDegreeOriginal": {
+   "min": 0,
+   "median": 45,
+   "max": 1133,
+   "mean": 57.4
+  },
+  "roiCountsPreserved": true,
+  "inputSetSameAsC0": true,
+  "readoutSetSameAsC0": true,
+  "negativeWeights": 0,
+  "checks": [
+   {
+    "name": "N 일치",
+    "ok": true,
+    "detail": "8000 vs 8000"
+   },
+   {
+    "name": "E 일치",
+    "ok": true,
+    "detail": "459168 vs 459168"
+   },
+   {
+    "name": "입력 뉴런 수 일치",
+    "ok": true,
+    "detail": "2316 vs 2316"
+   },
+   {
+    "name": "readout 뉴런 수 일치",
+    "ok": true,
+    "detail": "107 vs 107"
+   },
+   {
+    "name": "P 일치 (±0.5%)",
+    "ok": true,
+    "detail": "1067041 vs C0 1067041 (0.000%)"
+   },
+   {
+    "name": "원본 간선과의 교집합 ≈ 우연 수준",
+    "ok": true,
+    "detail": "2.943% (우연 0.718%)"
+   },
+   {
+    "name": "in/out 차수 원본과 동일",
+    "ok": true,
+    "detail": "동일 true"
+   },
+   {
+    "name": "ROI 별 뉴런 수 보존",
+    "ok": true,
+    "detail": "ok"
+   },
+   {
+    "name": "입력 뉴런 집합 원본과 동일",
+    "ok": true,
+    "detail": "true"
+   },
+   {
+    "name": "readout 뉴런 집합 원본과 동일",
+    "ok": true,
+    "detail": "true"
+   },
+   {
+    "name": "억제성 간선 비율 원본과 동일 (초기 0% — 커넥톰 가중치는 전부 양수)",
+    "ok": true,
+    "detail": "음수 가중치 0"
+   }
+  ],
+  "pass": true
+ },
+ "note": "간선 목록은 저장하지 않는다 — (connectome.json, kind, seed) 에서 결정적으로 재생성되고 fingerprint 로 검증된다."
+}

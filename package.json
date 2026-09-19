@@ -30,7 +30,12 @@
     "rank-train": "node scripts/rank-train.js",
     "estimate-budget-stage5": "node scripts/estimate-budget-stage5.js",
     "train-c0": "node scripts/train-c0.js",
-    "train-nulls": "node scripts/train-nulls.js"
+    "train-nulls": "node scripts/train-nulls.js",
+    "phaseb-masks": "node scripts/phaseb-masks.js",
+    "train-phaseb": "node scripts/train-phaseb.js",
+    "phaseb-compare": "node scripts/phaseb-compare.js",
+    "phaseb-smoke": "node scripts/phaseb-smoke.js",
+    "phaseb-report": "node scripts/phaseb-report.js"
   },
   "dependencies": {
     "three": "^0.186.0"

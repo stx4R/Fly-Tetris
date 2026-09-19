@@ -12,7 +12,9 @@
 const u32 = (v) => { const out = []; do { let b = v & 0x7f; v >>>= 7; if (v) b |= 0x80; out.push(b); } while (v); return out; };
 const s32 = (v) => { const out = []; for (;;) { const b = v & 0x7f; v >>= 7; if ((v === 0 && (b & 0x40) === 0) || (v === -1 && (b & 0x40) !== 0)) { out.push(b); return out; } out.push(b | 0x80); } };
 const f64 = (v) => Array.from(new Uint8Array(Float64Array.of(v).buffer));
-const str = (s) => [...u32(s.length), ...Array.from(Buffer.from(s, 'utf8'))];
+// TextEncoder 는 Node·브라우저 양쪽에 있다 (Buffer 는 Node 전용 — 브라우저에서 wasm 백엔드가 js 로 떨어지는 원인이었다)
+const utf8 = new TextEncoder();
+const str = (s) => [...u32(s.length), ...Array.from(utf8.encode(s))];
 const vec = (items) => [...u32(items.length), ...items.flat()];
 const section = (id, body) => [id, ...u32(body.length), ...body];
 

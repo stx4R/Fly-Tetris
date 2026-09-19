@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Phase B smoke — 브라우저 추론</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 24px; max-width: 900px; }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 16px; opacity: .7; }
+  #status { padding: 8px 10px; border-left: 3px solid currentColor; opacity: .85; }
+  #done { font-weight: 700; margin: 12px 0; }
+  pre { white-space: pre-wrap; word-break: break-all; padding: 12px; border: 1px solid rgba(128,128,128,.4); border-radius: 6px; }
+</style>
+</head>
+<body>
+  <h1>7단계 Phase B smoke — 브라우저 추론 일치성 · 성능</h1>
+  <p class="sub">Node 와 같은 src 모듈로 같은 입력을 점수화한다. 지시 §6 항목 2·4.</p>
+  <div id="status">시작 중…</div>
+  <div id="done"></div>
+  <pre id="out"></pre>
+  <script type="module" src="smoke.js"></script>
+</body>
+</html>

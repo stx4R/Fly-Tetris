@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { createPool as createWorkerPool } from './pool.js';
 import { parseConnectome } from '../src/connectome.js';
 import { buildCondition } from '../src/nullmodels.js';
+import { PHASE_B_NULLS, buildPhaseBNull } from '../src/stage7-nulls.js';
 import { deserialize } from '../src/versus-data.js';
 import { DEFAULT_PARAMS, DEFAULT_VARIANT, TEACHER_VARIANTS, variantOf } from '../src/teacher-attack.js';
 import { buildMask, calibrateReadout, createDenseMLP, createSparseRNN, denseMatchedShape, initDenseTheta, initSparseTheta, sparseLayout, U_DIM } from '../src/sparse-rnn.js';
@@ -87,8 +88,9 @@ export function buildDataset(data, { trainDecisions = HYPER.trainDecisions, valD
 
 // ---------- 모델 상태 ----------
 
-// 조건 → 마스크 (C0/C1/C3/C4/C5; 시드는 null 조건에만)
+// 조건 → 마스크 (C0/C1/C3/C4/C5 + Phase B 의 N1/N2/N3; 시드는 null 조건에만)
 export function maskFor(connectome, condition, seed = 0) {
+  if (PHASE_B_NULLS.includes(condition)) return buildMask(buildPhaseBNull(connectome, condition, seed));
   return buildMask(buildCondition(connectome, condition, seed));
 }
 

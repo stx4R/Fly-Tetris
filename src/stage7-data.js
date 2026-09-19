@@ -149,7 +149,9 @@ export function mergeDagger(dataset, newGames, { valFraction = 0.1 } = {}) {
 // items: [{ rows, chosen, values, subset }], scores: items 와 같은 순서의 Float64Array 배열 (후보별 점수). 결정 내 τ · top-1 · regret, 부트스트랩 95% CI.
 // 선택 품질 (Phase A-2 게이트): 모델 선택의 교사 순위 백분위 (1 = 최선), 선택이 교사 값 하위 50% / 25% 인 결정 비율 (bottomHalfRate ≤ 5% 가 게이트).
 // regret (Phase A-3 선택·게이트 기준): 결정마다 V_teacher(교사 최선) − V_teacher(정책 선택); 상대 regret 은 그것을 (V_max − V_min) 으로 나눈 값 (V_max = V_min 인 결정은 0).
-export function metricsFromScores(items, scores, { seed = 11 } = {}) {
+// perDecision: true 면 결정별 배열도 돌려준다 (7단계 Phase B 의 결정 단위 쌍대 비교 — scripts/phaseb-compare.js).
+// 기본값은 예전과 같다 (배열 없음) — 기존 호출부의 동작·결과는 바뀌지 않는다.
+export function metricsFromScores(items, scores, { seed = 11, perDecision = false } = {}) {
   const taus = [], hits = [], regrets = [], relRegrets = [], pctl = [], bottomHalf = [], bottomQuarter = [];
   let candidates = 0;
   for (let i = 0; i < items.length; i++) {
@@ -178,6 +180,7 @@ export function metricsFromScores(items, scores, { seed = 11 } = {}) {
     top1: mean(hits), top1CI: bootstrapCI(hits, mean, { seed: seed + 1 }),
     regret: mean(regrets), regretCI: bootstrapCI(regrets, mean, { seed: seed + 3 }), relRegret: mean(relRegrets), relRegretCI: bootstrapCI(relRegrets, mean, { seed: seed + 4 }),
     pickPercentile: mean(pctl), bottomHalfRate: mean(bottomHalf), bottomHalfRateCI: bootstrapCI(bottomHalf, mean, { seed: seed + 2 }), bottomQuarterRate: mean(bottomQuarter),
+    ...(perDecision ? { perDecision: { tau: taus, top1: hits, regret: regrets, relRegret: relRegrets, bottomHalf } } : {}),
   };
 }
 

@@ -24,7 +24,8 @@ import { CELLS, WIDTH } from './tetris.js';
 import { createArena, instantiate as instantiateWasm, wasmAvailable } from './wasm-kernels.js';
 
 // 커널 백엔드: 'js' (B 별 생성 코드) | 'wasm' (f64x2 SIMD, src/wasm-kernels.js; 결과는 덧셈 순서 차이 안에서 같다). 환경변수 SPARSE_RNN_BACKEND 로 기본값을 바꾼다.
-export const DEFAULT_BACKEND = process.env.SPARSE_RNN_BACKEND === 'js' ? 'js' : 'wasm'; // wasm 이 없으면 createSparseRNN 이 js 로 내려간다
+// 브라우저에는 process 가 없다 (7단계 Phase B smoke §6 의 브라우저 추론 — 같은 모듈을 그대로 쓴다)
+export const DEFAULT_BACKEND = (typeof process !== 'undefined' && process.env?.SPARSE_RNN_BACKEND === 'js') ? 'js' : 'wasm'; // wasm 이 없으면 createSparseRNN 이 js 로 내려간다
 
 export const U_DIM = 256;
 export const LEAK = 0.33;
@@ -43,7 +44,9 @@ export function buildMask(connectome) {
   const csr = buildUnitCSR(connectome, 1);
   const { N } = csr;
   const E = csr.indices.length;
-  const shared = (Ctor, src) => { const a = new Ctor(new SharedArrayBuffer(src.length * Ctor.BYTES_PER_ELEMENT)); a.set(src); return a; };
+  // SharedArrayBuffer 가 없는 환경(COOP/COEP 없는 브라우저)에서는 일반 ArrayBuffer 로 내려간다 — 값은 같고 워커 공유만 못 한다.
+  const Buf = typeof SharedArrayBuffer !== 'undefined' ? SharedArrayBuffer : ArrayBuffer;
+  const shared = (Ctor, src) => { const a = new Ctor(new Buf(src.length * Ctor.BYTES_PER_ELEMENT)); a.set(src); return a; };
   const layers = connectome.neurons.map((n) => n.layer);
   const nInput = layers.filter((l) => l === 'input').length;
   const nOutput = layers.filter((l) => l === 'output').length;

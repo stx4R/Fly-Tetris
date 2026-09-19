@@ -11,6 +11,10 @@
 같은 파라미터 수의 밀집 MLP 도 같은 프로토콜에서 같은 방식으로 죽는다 — 배선 제약이 아니라 학습 설정의 한계. 다음 축은 사용자 결정 (문서 §5.3). Phase B(null 비교)는 게이트 통과 후.
 계획: 7단계 → 8단계 웹·대전 UI (1차 시각화 콘솔은 배포됨: https://stx4r.github.io/Fly/, `docs/stage8-web-v1.md`) → 9단계 보고서.
 
+**2026-09-19 우선순위 변경: 8단계(브라우저에서 사람이 키보드로 두는 실시간 대전)를 먼저 만든다.** 7단계 Phase B(배선 대조군 N1/N2/N3)는
+C0 50 게임 기준선과 smoke 까지 끝낸 뒤 N1 의 round 0 epoch 10 에서 **중단**했다. 재개는 `cmd /c data\stage7\run-phaseb-chain.cmd`
+한 줄이고, 중단 지점·대조군 정의·재개 주의사항은 `docs/stage7-wiring-constraint.md` 의 "Phase B — 2026-09-19 중단 상태" 절에 있다.
+
 ## 사용
 
 ```bash
