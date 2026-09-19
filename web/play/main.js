@@ -14,6 +14,7 @@ const statusEl = $('status'), bannerEl = $('banner'), thinkEl = $('think');
 const boardsEl = $('boards');
 const speedEl = $('speed'), speedOut = $('speedOut'), gravityEl = $('gravity'), gravityOut = $('gravityOut');
 const dasEl = $('das'), dasOut = $('dasOut'), arrEl = $('arr'), arrOut = $('arrOut');
+const softEl = $('soft'), softOut = $('softOut');
 
 const KEYMAP = {
   ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', Space: 'hardDrop',
@@ -28,7 +29,7 @@ let pendingId = 0, pendingDecision = null, awaiting = false, flyNextAt = 0, last
 let last = 0, rafId = 0;
 
 function tuning() {
-  return { ...DEFAULT_TUNING, gravityMs: Number(gravityEl.value), dasMs: Number(dasEl.value), arrMs: Number(arrEl.value) };
+  return { ...DEFAULT_TUNING, gravityMs: Number(gravityEl.value), softDropMs: Number(softEl.value), dasMs: Number(dasEl.value), arrMs: Number(arrEl.value) };
 }
 
 function setBanner(text, tone = '') {
@@ -86,10 +87,9 @@ function draw() {
   renderers.fly.draw(viewOf(match, 'fly'), { label: '초파리 (C0)', highlight: !over, status: lastThinkMs !== null ? `${lastThinkMs} ms/수` : '' });
 }
 
-function frame(now) {
-  rafId = requestAnimationFrame(frame);
-  const dt = Math.min(100, now - last);
-  last = now;
+// 한 프레임의 게임 로직. frame() 이 rAF 로 부르고, 테스트에서는 __versus.step(dt) 로 직접 부른다
+// (브라우저 탭이 숨겨지면 rAF 가 멈춰 자동 검증을 할 수 없기 때문).
+function step(dt, now = performance.now()) {
   if (!match || match.over || paused || !started) { draw(); return; }
 
   match.tuning = tuning();
@@ -111,6 +111,13 @@ function frame(now) {
     setBanner(`${who} — ${match.reason}  (R 키로 다시)`, match.winner === 'human' ? 'good' : 'bad');
   }
   draw();
+}
+
+function frame(now) {
+  rafId = requestAnimationFrame(frame);
+  const dt = Math.min(100, now - last);
+  last = now;
+  step(dt, now);
 }
 
 // ---------- 입력 ----------
@@ -174,6 +181,7 @@ function boot() {
   buildRenderers();
   bindSlider(speedEl, speedOut);
   bindSlider(gravityEl, gravityOut);
+  bindSlider(softEl, softOut);
   bindSlider(dasEl, dasOut);
   bindSlider(arrEl, arrOut);
 
@@ -194,6 +202,9 @@ globalThis.__versus = {
   get match() { return match; }, keys,
   get started() { return started; }, get paused() { return paused; }, get ready() { return ready; },
   get cell() { return renderers?.human.cell; }, tuning,
+  step,                       // 수동 프레임 (테스트용)
+  press(code) { dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true })); },
+  release(code) { dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, cancelable: true })); },
 };
 
 boot();

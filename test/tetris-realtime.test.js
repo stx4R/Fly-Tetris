@@ -8,7 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRng } from '../src/prng.js';
 import {
-  BUFFER, HEIGHT, PIECES, WIDTH,
+  BUFFER, HEIGHT, PIECES, SHAPES, WIDTH,
   boxToPlacement, emptyBoard, hardDropBox, isResting, pieceCells, pieceFits,
   reachablePlacements, rotateWithKick, spawnPiece,
 } from '../src/tetris.js';
@@ -139,4 +139,57 @@ test('rotateWithKick: O 는 회전하지 않고, 킥이 모두 막히면 null �
   for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) full[y * WIDTH + x] = 1;
   const I = PIECES.indexOf('I');
   assert.equal(rotateWithKick(full, I, 0, 1, 3, 0), null, '꽉 찬 보드에서 회전이 성공했다');
+});
+
+// ---------- 렌더 좌표 = 실제 고정 좌표 ----------
+// 좌표계가 둘이다: SHAPES 는 정규화 좌표(= (col, top) 짝), pieceCells 는 박스 좌표(= (bx, by) 짝).
+// 렌더가 SHAPES 를 (bx, by) 에 그대로 더하면 28개 회전 중 14개가 최대 2칸 어긋나 "보이는 위치"와
+// "실제 고정 위치"가 달라진다 (2026-09-19 실제 버그 — 고스트가 보드 밖으로 나가고 하드드롭이 빗나갔다).
+
+test('pieceCells(박스 좌표) = 엔진이 실제로 채우는 셀 (모든 조각 × 회전)', () => {
+  for (let piece = 0; piece < PIECES.length; piece++) {
+    for (let rot = 0; rot < 4; rot++) {
+      for (const [bx, by] of [[0, 0], [3, 5], [6, 12], [2, -2]]) {
+        const p = boxToPlacement(piece, rot, bx, by);
+        // 엔진은 (col, top) 에 정규화 좌표를 더해 셀을 채운다 (applyPlacement 와 같은 규칙)
+        const engine = SHAPES[piece][rot].cells.map(([dx, dy]) => `${p.col + dx},${p.top + dy}`).sort();
+        const render = pieceCells(piece, rot, bx, by).map(([x, y]) => `${x},${y}`).sort();
+        assert.deepEqual(render, engine, `${PIECES[piece]} rot${rot} @ (${bx},${by})`);
+      }
+    }
+  }
+});
+
+test('SHAPES 를 (bx, by) 에 그대로 더하면 어긋난다 — 회귀 방지용 반례', () => {
+  let mismatched = 0;
+  for (let piece = 0; piece < PIECES.length; piece++) {
+    for (let rot = 0; rot < 4; rot++) {
+      const naive = SHAPES[piece][rot].cells.map(([dx, dy]) => `${dx},${dy}`).sort().join('|');
+      const right = pieceCells(piece, rot, 0, 0).map(([x, y]) => `${x},${y}`).sort().join('|');
+      if (naive !== right) mismatched++;
+    }
+  }
+  assert.equal(mismatched, 14, `두 좌표계가 어긋나는 회전 수가 바뀌었다 (${mismatched}) — 렌더가 어느 쪽을 쓰는지 다시 확인할 것`);
+});
+
+test('하드드롭한 고스트 위치가 실제 고정 셀과 같다 (무작위 보드)', () => {
+  const rng = createRng(4242);
+  for (let t = 0; t < 60; t++) {
+    const board = randomBoard(rng, 1 + rng.int(12));
+    for (let piece = 0; piece < PIECES.length; piece++) {
+      const s = spawnPiece(board, piece);
+      if (!s) continue;
+      for (const rot of [0, 1, 2, 3]) {
+        if (!pieceFits(board, piece, rot, s.bx, s.by)) continue;
+        const by = hardDropBox(board, piece, rot, s.bx, s.by);
+        const ghost = pieceCells(piece, rot, s.bx, by).map(([x, y]) => `${x},${y}`).sort();
+        const p = boxToPlacement(piece, rot, s.bx, by);
+        const locked = SHAPES[piece][rot].cells.map(([dx, dy]) => `${p.col + dx},${p.top + dy}`).sort();
+        assert.deepEqual(ghost, locked, `${PIECES[piece]} rot${rot}: 고스트와 고정 위치가 다르다`);
+        for (const [x, y] of pieceCells(piece, rot, s.bx, by)) {
+          assert.ok(x >= 0 && x < WIDTH, `${PIECES[piece]} rot${rot}: 고스트가 보드 좌우를 벗어난다 (x ${x})`);
+        }
+      }
+    }
+  }
 });

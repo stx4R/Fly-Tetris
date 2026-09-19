@@ -16,9 +16,9 @@ import { boxToPlacement, hardDropBox, isResting, pieceFits, rotateWithKick, spaw
 
 export const DEFAULT_TUNING = {
   gravityMs: 800,     // 중력으로 한 칸 내려가는 주기
-  softDropMs: 30,     // 소프트드롭 주기
-  dasMs: 133,         // 좌우 키를 누르고 자동 반복이 시작되기까지
-  arrMs: 20,          // 자동 반복 주기 (0 이면 즉시 벽까지)
+  softDropMs: 12,     // 소프트드롭 주기 (30 이면 바닥까지 585 ms 로 뻑뻑했다 — 실측 후 낮춤)
+  dasMs: 120,         // 좌우 키를 누르고 자동 반복이 시작되기까지
+  arrMs: 12,          // 자동 반복 주기 (0 이면 즉시 벽까지)
   lockDelayMs: 500,   // 접지 후 고정까지
   lockResets: 15,     // 이동·회전으로 락 지연을 리셋할 수 있는 횟수
 };
