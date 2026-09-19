@@ -1,36 +1,42 @@
-// 8단계 — 대전 화면 렌더 (캔버스). 한 쪽(사람/초파리)이 캔버스 하나를 쓴다.
-// 레이아웃: [홀드] [대기 가비지 바] [보드 10×20] [넥스트 5]
+// 8단계 — 대전 보드 렌더 (캔버스). 토스 리디자인 기준.
 //
-// 엔진 보드는 0/1 만 담는다 (조각 종류를 남기지 않는다) — 그래서 쌓인 블록은 한 가지 색이고,
-// 조각 색은 지금 움직이는 조각·고스트·홀드·넥스트에만 쓴다. 실제보다 화려하게 보이려고 색을 지어내지 않는다.
-
-import { HEIGHT, PIECES, SHAPES, WIDTH, pieceCells } from '../../src/tetris.js';
-
+// 캔버스는 **보드만** 그린다. HOLD·NEXT·대기 가비지·COMBO 는 DOM 이 맡는다 (versus.html).
+// 캔버스 크기 = 10칸 × (20 + 버퍼 2)칸. 엔진이 조각을 버퍼(y = -2, -1)에서 스폰하므로 그 두 줄을
+// 흐리게 같이 그려야 새 조각이 보인다.
+//
+// 색은 콘솔(web/style.css)과 같은 토스 토큰을 쓴다: 빈 칸 grey-100, 격자 grey-200, 쌓인 블록 grey-400.
+// 조각 7색만 예외로 유채색을 쓴다 — 조각 색은 크롬이 아니라 콘텐츠라서다. 7색 모두 토스 base 에서 파생했고
+// blue-500 은 CTA 와 J 조각에만 나온다.
+//
 // 주의 — 좌표계가 둘이다.
-//   SHAPES[piece][rot].cells : 정규화 좌표 (바운딩 박스 기준, minX/minY 를 뺀 것). (col, top) 과 짝이다.
-//   pieceCells(piece, rot, bx, by) : 박스 좌표 (bx, by) 에서의 실제 보드 셀. kinematics 의 (bx, by) 와 짝이다.
-// 현재 조각·고스트는 (bx, by) 로 들고 있으므로 반드시 pieceCells 를 써야 한다. SHAPES 를 (bx, by) 에 그대로
-// 더하면 28개 회전 중 14개가 최대 2칸 어긋나고(특히 I), 그리는 위치와 실제로 고정되는 위치가 달라진다.
+//   SHAPES[piece][rot].cells : 정규화 좌표 (minX/minY 를 뺀 것). (col, top) 과 짝이다.
+//   pieceCells(piece, rot, bx, by) : 박스 좌표에서의 실제 보드 셀. kinematics 의 (bx, by) 와 짝이다.
+// 현재 조각·고스트는 (bx, by) 로 들고 있으므로 반드시 pieceCells 를 써야 한다 (28개 회전 중 14개가 어긋난다).
 
-export const PIECE_COLORS = ['#22d3ee', '#facc15', '#c084fc', '#4ade80', '#f87171', '#60a5fa', '#fb923c']; // I O T S Z J L
-const STACK = '#94a3b8';
-const GRID = 'rgba(148,163,184,0.14)';
-const FRAME = 'rgba(148,163,184,0.45)';
+import { HEIGHT, WIDTH, pieceCells } from '../../src/tetris.js';
 
-const HOLD_CELLS = 5, NEXT_CELLS = 5, BAR_CELLS = 0.6, GAP = 0.4;
-// 엔진은 조각을 버퍼(y = -2, -1)에서 스폰한다. 그 두 줄을 그리지 않으면 새 조각이 한 칸 떨어질 때까지 보이지 않아
-// 사람이 조작할 수 없다. 그래서 버퍼를 흐리게 같이 그린다.
+// I O T S Z J L — 토스 base 파생 (근거는 시안 1c)
+export const PIECE_COLORS = [
+  'oklch(0.700 0.130 205)', // I  blue 에서 hue 만 이동
+  'oklch(0.840 0.171 87)',  // O  yellow
+  'oklch(0.624 0.176 300)', // T  blue-500 과 동일 L·C
+  'oklch(0.600 0.150 154)', // S  green-500 +L (면적색이라 한 단계 밝게)
+  'oklch(0.628 0.218 22)',  // Z  red-500 (가비지 경고와 같은 hue)
+  'oklch(0.624 0.176 254)', // J  blue-500
+  'oklch(0.748 0.183 56)',  // L  orange-500
+];
+const EMPTY = 'oklch(0.957 0.005 247)';   // grey-100
+const GRID = 'oklch(0.913 0.008 247)';    // grey-200
+const STACK = 'oklch(0.752 0.016 251)';   // grey-400
+const BUFFER_BG = 'oklch(0.978 0.003 247)'; // grey-50 — 스폰 구간은 보드보다 밝게
+
 export const SHOW_BUFFER = 2;
-export const TOP_PAD = 2.2; // 제목 줄과 HOLD/NEXT 라벨이 겹치지 않도록
+export const ROWS = HEIGHT + SHOW_BUFFER;
 
-export function rendererSize(cell) {
-  const w = (HOLD_CELLS + GAP + BAR_CELLS + GAP + WIDTH + GAP + NEXT_CELLS) * cell;
-  const h = (HEIGHT + SHOW_BUFFER + TOP_PAD) * cell;
-  return { width: Math.round(w), height: Math.round(h) };
-}
+export const boardSize = (cell) => ({ width: WIDTH * cell, height: ROWS * cell });
 
-export function createRenderer(canvas, { cell = 22 } = {}) {
-  const size = rendererSize(cell);
+export function createRenderer(canvas, { cell = 30 } = {}) {
+  const size = boardSize(cell);
   const dpr = Math.min(2, globalThis.devicePixelRatio || 1);
   canvas.width = Math.round(size.width * dpr);
   canvas.height = Math.round(size.height * dpr);
@@ -39,118 +45,68 @@ export function createRenderer(canvas, { cell = 22 } = {}) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  const holdX = 0;
-  const barX = (HOLD_CELLS + GAP) * cell;
-  const boardX = barX + (BAR_CELLS + GAP) * cell;
-  const nextX = boardX + (WIDTH + GAP) * cell;
-  const bufY = TOP_PAD * cell;                  // 버퍼 영역(보이는 스폰 구간) 윗변
-  const topY = bufY + SHOW_BUFFER * cell;       // 보드 y=0 의 윗변
-  const rowY = (y) => topY + y * cell;          // 보드 좌표 y (음수 = 버퍼)
+  const rowY = (y) => (y + SHOW_BUFFER) * cell;   // 보드 좌표 y (음수 = 버퍼)
+  const r = Math.max(2, Math.round(cell * 0.12)); // 셀 라운드 (시안의 3px @ 30px 셀)
 
-  const block = (x, y, color) => {
+  const cellRect = (x, y, color, alpha = 1) => {
+    ctx.globalAlpha = alpha;
     ctx.fillStyle = color;
-    ctx.fillRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
-    ctx.fillStyle = 'rgba(255,255,255,0.14)';
-    ctx.fillRect(x + 0.5, y + 0.5, cell - 1, Math.max(1, cell * 0.16));
+    ctx.beginPath();
+    ctx.roundRect(x * cell + 1, rowY(y) + 1, cell - 2, cell - 2, r);
+    ctx.fill();
+    ctx.globalAlpha = 1;
   };
 
-  // 4×4 미니 그리드에 조각 하나 (홀드·넥스트)
-  const mini = (piece, cx, cy, mcell, dim = false) => {
-    if (piece === null || piece === undefined) return;
-    const s = SHAPES[piece][0];
-    const w = s.w, cells = s.cells;
-    const ox = cx + ((4 - w) * mcell) / 2;
-    const oy = cy;
-    for (const [dx, dy] of cells) {
-      ctx.globalAlpha = dim ? 0.35 : 1;
-      block(ox + dx * mcell, oy + dy * mcell, PIECE_COLORS[piece]);
-      ctx.globalAlpha = 1;
-    }
-  };
+  function draw(view) {
+    // 바탕 — 버퍼 구간은 한 단계 밝게 해서 "여기는 아직 판이 아니다"를 보여준다
+    ctx.fillStyle = BUFFER_BG;
+    ctx.fillRect(0, 0, size.width, SHOW_BUFFER * cell);
+    ctx.fillStyle = EMPTY;
+    ctx.fillRect(0, SHOW_BUFFER * cell, size.width, HEIGHT * cell);
 
-  function draw(view, { label = '', status = '', highlight = false } = {}) {
-    ctx.clearRect(0, 0, size.width, size.height);
-
-    // 제목
-    ctx.fillStyle = highlight ? '#e2e8f0' : '#94a3b8';
-    ctx.font = `600 ${Math.round(cell * 0.62)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillText(label, holdX, cell * 0.95);
-    if (status) {
-      ctx.fillStyle = '#64748b';
-      ctx.font = `${Math.round(cell * 0.5)}px ui-monospace, monospace`;
-      ctx.fillText(status, boardX, cell * 0.95);
-    }
-
-    // 버퍼(스폰 구간) — 보드보다 어둡게, 경계선으로 구분
-    ctx.fillStyle = 'rgba(15,23,42,0.28)';
-    ctx.fillRect(boardX, bufY, WIDTH * cell, SHOW_BUFFER * cell);
-    // 보드 배경 · 격자
-    ctx.fillStyle = 'rgba(15,23,42,0.55)';
-    ctx.fillRect(boardX, topY, WIDTH * cell, HEIGHT * cell);
+    // 1px 헤어라인 격자
     ctx.strokeStyle = GRID;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    for (let x = 1; x < WIDTH; x++) { ctx.moveTo(boardX + x * cell + 0.5, bufY); ctx.lineTo(boardX + x * cell + 0.5, topY + HEIGHT * cell); }
-    for (let y = 1; y < HEIGHT; y++) { ctx.moveTo(boardX, rowY(y) + 0.5); ctx.lineTo(boardX + WIDTH * cell, rowY(y) + 0.5); }
+    for (let x = 1; x < WIDTH; x++) { ctx.moveTo(x * cell + 0.5, 0); ctx.lineTo(x * cell + 0.5, size.height); }
+    for (let y = 1; y < ROWS; y++) { ctx.moveTo(0, y * cell + 0.5); ctx.lineTo(size.width, y * cell + 0.5); }
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(148,163,184,0.3)';
-    ctx.beginPath(); ctx.moveTo(boardX, topY + 0.5); ctx.lineTo(boardX + WIDTH * cell, topY + 0.5); ctx.stroke();
+    // 버퍼와 판의 경계
+    ctx.strokeStyle = 'oklch(0.840 0.012 248)'; // grey-300
+    ctx.beginPath();
+    ctx.moveTo(0, SHOW_BUFFER * cell + 0.5); ctx.lineTo(size.width, SHOW_BUFFER * cell + 0.5);
+    ctx.stroke();
 
     // 쌓인 블록
     for (let y = 0; y < HEIGHT; y++) {
-      for (let x = 0; x < WIDTH; x++) {
-        if (view.board[y * WIDTH + x]) block(boardX + x * cell, rowY(y), STACK);
-      }
+      for (let x = 0; x < WIDTH; x++) if (view.board[y * WIDTH + x]) cellRect(x, y, STACK);
     }
 
-    // 고스트 → 현재 조각 순서로 (겹치면 현재 조각이 위)
-    const drawPiece = (pc, alpha) => {
-      ctx.globalAlpha = alpha;
+    // 고스트 → 현재 조각 (겹치면 현재 조각이 위)
+    const piece = (pc, alpha) => {
       for (const [gx, gy] of pieceCells(pc.piece, pc.rot, pc.bx, pc.by)) {
-        if (gy >= -SHOW_BUFFER && gy < HEIGHT && gx >= 0 && gx < WIDTH) block(boardX + gx * cell, rowY(gy), PIECE_COLORS[pc.piece]);
+        if (gy >= -SHOW_BUFFER && gy < HEIGHT && gx >= 0 && gx < WIDTH) cellRect(gx, gy, PIECE_COLORS[pc.piece], alpha);
       }
-      ctx.globalAlpha = 1;
     };
-    if (view.ghost) drawPiece(view.ghost, 0.22);
-    if (view.piece) drawPiece(view.piece, 1);
-
-    // 보드 테두리
-    ctx.strokeStyle = FRAME;
-    ctx.strokeRect(boardX + 0.5, bufY + 0.5, WIDTH * cell - 1, (HEIGHT + SHOW_BUFFER) * cell - 1);
-
-    // 대기 가비지 바 (아래에서 위로)
-    ctx.fillStyle = 'rgba(148,163,184,0.18)';
-    ctx.fillRect(barX, topY, BAR_CELLS * cell, HEIGHT * cell);
-    const pending = Math.min(HEIGHT, view.pending ?? 0);
-    if (pending > 0) {
-      ctx.fillStyle = pending >= 4 ? '#ef4444' : '#f59e0b';
-      ctx.fillRect(barX, topY + (HEIGHT - pending) * cell, BAR_CELLS * cell, pending * cell);
-    }
-
-    // 홀드
-    const mcell = cell * 0.62;
-    ctx.fillStyle = '#64748b';
-    ctx.font = `${Math.round(cell * 0.46)}px ui-sans-serif, system-ui, sans-serif`;
-    ctx.fillText('HOLD', holdX, topY - cell * 0.18);
-    mini(view.hold, holdX, topY + cell * 0.2, mcell, view.holdUsed);
-
-    // 넥스트 5
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('NEXT', nextX, topY - cell * 0.18);
-    (view.next ?? []).slice(0, 5).forEach((p, i) => mini(p, nextX, topY + cell * 0.2 + i * mcell * 3.2, mcell));
-
-    // 통계
-    ctx.fillStyle = '#64748b';
-    ctx.font = `${Math.round(cell * 0.46)}px ui-monospace, monospace`;
-    const st = view.stats ?? {};
-    const lines = [`조각 ${view.pieces}`, `공격 ${st.attack ?? 0}`, `줄 ${st.lines ?? 0}`, `테트리스 ${st.tetris ?? 0}`];
-    lines.forEach((t, i) => ctx.fillText(t, holdX, topY + cell * 5.4 + i * cell * 0.72));
-    if (view.combo > 1) {
-      ctx.fillStyle = '#fbbf24';
-      ctx.fillText(`${view.combo} COMBO`, holdX, topY + cell * 5.4 + 4 * cell * 0.72);
-    }
+    if (view.ghost) piece(view.ghost, 0.20);
+    if (view.piece) piece(view.piece, 1);
   }
 
   return { draw, size, cell };
+}
+
+// HOLD·NEXT 의 DOM 미니 조각 — 정규화 좌표(SHAPES)로 자체 그리드를 만든다 (보드 좌표와 무관).
+export function miniGrid(piece, shapes, cellPx) {
+  const s = shapes[piece][0];
+  const el = document.createElement('div');
+  el.className = 'vs-mini';
+  el.style.gridTemplateColumns = `repeat(${s.w}, ${cellPx}px)`;
+  el.style.gridTemplateRows = `repeat(${s.h}, ${cellPx}px)`;
+  const filled = new Set(s.cells.map(([x, y]) => y * s.w + x));
+  for (let i = 0; i < s.w * s.h; i++) {
+    const d = document.createElement('div');
+    if (filled.has(i)) d.style.background = PIECE_COLORS[piece];
+    el.appendChild(d);
+  }
+  return el;
 }
