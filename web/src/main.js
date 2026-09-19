@@ -42,13 +42,14 @@ const ver = BUILD ? `?v=${BUILD}` : '';
 // (sessionStorage 로 한 번만 — 서버가 계속 옛 HTML 을 주더라도 무한 새로고침에 빠지지 않는다.)
 function reloadIfStaleShell() {
   const code = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : '';
-  if (!code || !BUILD || code === BUILD) return false;
+  // BUILD 가 비어 있으면 빌드 id 를 심기 전(v0.13.1 이하)의 HTML 이다 — 그것도 어긋난 껍데기로 본다.
+  if (!code || code === BUILD) return false;
   const key = `fly.reload.${code}`;
   try {
-    if (sessionStorage.getItem(key)) { console.warn(`빌드가 어긋나요 (HTML ${BUILD} ≠ 코드 ${code}) — 이미 한 번 새로고침해서 그대로 갑니다`); return false; }
+    if (sessionStorage.getItem(key)) { console.warn(`빌드가 어긋나요 (HTML ${BUILD || '(없음)'} ≠ 코드 ${code}) — 이미 한 번 새로고침해서 그대로 갑니다`); return false; }
     sessionStorage.setItem(key, '1');
   } catch { return false; } // 사설 모드 등: 새로고침 루프를 만들지 않는다
-  console.warn(`빌드가 어긋나 새로고침해요 (HTML ${BUILD} ≠ 코드 ${code})`);
+  console.warn(`빌드가 어긋나 새로고침해요 (HTML ${BUILD || '(없음)'} ≠ 코드 ${code})`);
   location.reload();
   return true;
 }
