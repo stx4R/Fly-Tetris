@@ -20,6 +20,7 @@
     "experiment": "node scripts/experiment.js",
     "smoke": "node scripts/smoke-run.js",
     "build-viz": "node scripts/build-viz-data.js",
+    "build-stage7-web": "node scripts/build-stage7-web.js",
     "build": "node scripts/build-web.js",
     "serve": "node scripts/serve-web.js",
     "deploy": "node scripts/deploy-pages.js",

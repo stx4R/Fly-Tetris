@@ -143,16 +143,27 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - **진단**: 정책 선택의 16% 가 교사 값 하위 절반 (학습 상태에서도 14%) — 학습 부분집합 밖의 수를 거른 적이 없다. 파일럿: 음성 구성을 교사 선택 + 상위 3 + 무작위 4 로 바꾸면 top-1 40.9% [38.0, 43.8]·조각 200 (CI 분리) 이지만 생존은 여전히 0.
   **같은 P 의 밀집 MLP(D0) 도 같은 프로토콜에서 top-1 35.6% · 조각 80 · 테트리스 0 으로 죽는다** — 미달의 원인은 마스크가 아니라 1-ply 모방 · 8k 결정 · hard-negative 설정. 제안 축(음성 구성 · 데이터 8k→24k+ · DAgger 규모 · 플레이 시 얕은 탐색 · 정규화 · 중간 게이트)은 문서 §5.3, 결정은 사용자.
 
-## 8단계 1차 — 웹 시각화 (`web/`, 배포 https://stx4r.github.io/Fly/; 개편 전 "6단계" 로 만든 콘솔)
+## 8단계 — 웹 (`web/`, 배포 https://stx4r.github.io/Fly/)
 
-사이드바 콘솔 7화면(해시 라우터), 프레임워크 없음(three + esbuild 만). 디자인은 토스 디자인 시스템 토큰(블루 단일 강조 · 1px 헤어라인 · 라운드 ladder ·
-Pretendard 가변 폰트 self-host · 숫자 고정폭). 모든 수치는 `web/data/*.json`(← `data/*.json`)에서 읽는다.
-홈(핵심 수치 4개 · 조건별 τ/R²/줄 막대 · 결론) · 실험(summary 의 조건별 실행 13개 표 + 상세: 동작점·캘리브레이션·분리도·리드아웃 6종) ·
-커넥톰 3D(층화 서브샘플 907 뉴런·5,963 시냅스, InstancedMesh + LineSegments, 반투명 뇌 껍질 GLB, ROI/KC 필터, 스파이크 재생 점등) ·
-결정 탐색(한 번의 결정: 후보별 DN 히트맵 + 예측 순위 ↔ 실제 순위 bump chart, τ / 스파이크 활동: 래스터·층별 추이) ·
-조건 비교(95% CI, C0 와 겹치면 회색 = 차이 없음, C1 동작 영역 없음 카드, ρ_unit 막대, 1부 분리도 구간) · 설정(표시 옵션만, localStorage).
-모바일은 사이드바가 상단 바로 접히고 3D 노드·간선 축소, reduced-motion 존중, WebGL 없어도 나머지 화면 동작. 실험을 실행하는 기능은 없다(정적 사이트).
-이 사이트는 실패한 결과를 그대로 보여준다 — "학습했다/플레이한다" 는 표현을 쓰지 않는다.
+사이드바 콘솔 10화면 **한 앱**(해시 라우터), 프레임워크 없음(three + esbuild 만). 대전도 별도 페이지가 아니라 한 라우트(`#/versus`)다 —
+그래서 제목·사이드바 하이라이트·설정이 하나로 통일되고, 대전에서 나온 값이 다른 화면으로 그대로 흐른다.
+디자인은 토스 디자인 시스템 토큰(블루 단일 강조 · 1px 헤어라인 · 라운드 ladder · Pretendard 가변 폰트 self-host · 숫자 고정폭).
+
+**대전에서 나오는 화면** (한 판도 두지 않았으면 빈 상태를 그린다 — 값을 지어내지 않는다):
+초파리가 두는 한 수마다 워커가 후보 전체의 모델 점수 · DN 창평균 107 · 교사 점수를 뽑고, 고른 후보 하나는 표본 907 뉴런 × 25 스텝의 활성까지 남긴다.
+기록은 IndexedDB(최근 20판 · 결정 60개)에 있고, 이 브라우저를 떠나지 않는다.
+대전(사람 키보드 vs 학습된 C0, 같은 엔진·같은 조각 순서) · 대전 기록(전적 · 공격 주고받기 타임라인) ·
+커넥톰 3D(층화 표본 907 뉴런·5,963 시냅스, 활성 세기로 점등) · 결정 탐색(후보 썸네일 · DN 히트맵 · 모델 순위 ↔ 교사 순위 bump chart) ·
+신경 활동(활성 래스터 · 층별 평균 |활성| 추이 · 재생) · 플레이 분석(구멍·높이 추이를 사람과 나란히, 교사 순위 분포, 줄 구성).
+
+**오프라인 실측 화면** (`web/data/stage7.json` ← `scripts/build-stage7-web.js` 가 실행 산출물에서 굽는다):
+홈(대전 CTA · 내 전적 · 게이트 5기준 · 학습 전/후/우연 순위 막대) · 실험(7단계 실행 5개 + 6단계 보관) ·
+조건 비교(플레이: 초파리 ↔ 교사 ↔ 무작위 / 순위: 학습 후 ↔ 학습 전 ↔ 우연 / 게이트 비율 / 줄 구성) · 설정(대전 조작 + 표시, localStorage).
+대조군 N1·N2·N3 는 마스크만 있고 학습되지 않아 그 자리는 **'아직 학습하지 않음'** 으로 비워 둔다.
+
+추론 페이로드는 `web/dist/model/`(mask.bin 1.78 MB + c0.model.bin 4.07 MB + teacher.json) 이고 `connectome.json` 7.36 MB 는 받지 않는다.
+모바일은 사이드바가 상단 바로 접히고 대전 판이 세로로 쌓인다. reduced-motion 존중, WebGL 없어도 나머지 화면 동작.
+이 사이트는 미달한 결과를 미달한 대로 보여준다 — 커넥톰에서 오는 것은 배선뿐이고 가중치는 학습된 값이라고 쓴다.
 
 ## 5단계 결과 요약 (자세히는 `docs/stage5-separation.md`)
 
@@ -212,7 +223,13 @@ scripts/train-c0.js  train-nulls.js  stage7-lib.js  stage7-worker.js   7단계 P
 scripts/stage7-diagnose.js  stage7-pilot-negatives.js   7단계 진단 (전체 후보 선택 품질: 하위 50% 선택 비율 등) / 파일럿 (음성 구성 mixed · D0 밀집 참조; Phase A 의 일부가 아님)
 src/sparse-rnn.js               7단계 모델: 커넥톰 마스크 희소 레이트 RNN (B 별 생성 배치 커널, 전치 없는 BPTT 역전파, 리드아웃 표준화) + D0 밀집 MLP (파라미터 수 정확 일치)
 src/stage7-data.js  stage7-train.js  stage7-agent.js   u 인코딩·K 부분집합·전체 후보 평가·DAgger 병합(누수 검사) / Adam·클리핑·코사인·W 변화 분석 / 학습된 정책 에이전트 (전체 후보 argmax)
-web/index.html  web/style.css  web/src/{main,router,settings,home,experiments,connectome,decision,heatmap,spikes,compare,util}.js   정적 사이트 소스 (web/data, web/dist 는 생성물)
+web/index.html  web/style.css    정적 사이트 셸 (10화면 한 문서, 해시 라우터로 hidden 토글)
+web/src/{main,router,util,settings,empty,pack}.js                     진입점 · 라우터 · 소도구 · 설정(대전 조작 + 표시) · 빈 상태 · 값 포장(보드 비트·바이트 양자화)
+web/src/{versus,fly-worker,matchlog}.js                               대전 루프 · 추론 워커(모델 점수 + 교사 점수 + 활성 트레이스, 별도 번들) · 기록 저장소(IndexedDB)
+web/src/{connectome,decision,activity,analysis,matches,heatmap}.js    대전에서 나오는 화면들
+web/src/{home,experiments,compare}.js                                 오프라인 실측 화면들
+web/play/{kinematics,match,render}.js                                 실시간 조작 상태 머신 · 대전 상태 머신 · 보드 렌더 (워커·메인 공용)
+scripts/build-stage7-web.js     7단계 실행 산출물 → web/data/stage7.json (없는 값은 만들지 않는다)
 scripts/estimate-budget-stage5.js  4·5단계 소요 추정
 scripts/experiment.js  experiment-worker.js  pool.js  experiment-config.js   4단계 실험 (조건별 캐시, 재개 가능)
 scripts/smoke-run.js            500조각 스모크 플레이 (학습 리드아웃 또는 랜덤 리드아웃)

@@ -19,19 +19,21 @@ function rmrf(p) { if (!existsSync(p)) return; for (const f of readdirSync(p)) {
 function cprf(src, dst) { if (statSync(src).isDirectory()) { mkdirSync(dst, { recursive: true }); for (const f of readdirSync(src)) cprf(path.join(src, f), path.join(dst, f)); } else copyFileSync(src, dst); }
 
 async function main() {
-  for (const f of ['data/graph-viz.json', 'data/episode.json', 'data/summary.json']) {
+  for (const f of ['data/graph-viz.json', 'data/summary.json']) {
     if (!existsSync(path.join(WEB, f))) { console.error(`missing web/${f} — run \`npm run build-viz\` first`); process.exit(1); }
   }
+  if (!existsSync(path.join(WEB, 'data', 'stage7.json'))) { console.error('missing web/data/stage7.json — run `npm run build-stage7-web` first'); process.exit(1); }
   rmrf(DIST);
   mkdirSync(DIST, { recursive: true });
-  const result = await build({
-    entryPoints: [path.join(WEB, 'src', 'main.js')],
-    bundle: true, minify: true, format: 'iife', target: ['es2020'], sourcemap: false,
-    outfile: path.join(DIST, 'app.js'), logLevel: 'warning', metafile: true,
-  });
+  // 앱과 추론 워커를 따로 묶는다. 워커는 클래식(IIFE) 이라 모듈 워커 지원 여부를 타지 않는다.
+  const common = { bundle: true, minify: true, format: 'iife', target: ['es2020'], sourcemap: false, logLevel: 'warning', metafile: true };
+  const result = await build({ ...common, entryPoints: [path.join(WEB, 'src', 'main.js')], outfile: path.join(DIST, 'app.js') });
+  await build({ ...common, entryPoints: [path.join(WEB, 'src', 'fly-worker.js')], outfile: path.join(DIST, 'fly-worker.js') });
   for (const f of ['index.html', 'style.css', 'favicon.svg']) cprf(path.join(WEB, f), path.join(DIST, f));
   cprf(path.join(ROOT, 'public', 'Profile.png'), path.join(DIST, 'avatar.png')); // 사이드바 프로필 (원본 public/Profile.png)
-  cprf(path.join(WEB, 'data'), path.join(DIST, 'data'));
+  // 런타임에 쓰는 데이터만 복사한다 (6단계 summary·episode 는 stage7.json 안에 요약만 들어갔다)
+  mkdirSync(path.join(DIST, 'data'), { recursive: true });
+  for (const f of ['graph-viz.json', 'stage7.json']) copyFileSync(path.join(WEB, 'data', f), path.join(DIST, 'data', f));
   cprf(path.join(ROOT, 'public', 'models'), path.join(DIST, 'models'));
   const FONT = path.join(ROOT, 'node_modules', 'pretendard', 'dist', 'web', 'variable');
   if (!existsSync(FONT)) { console.error('missing node_modules/pretendard — run `npm install`'); process.exit(1); }
@@ -39,7 +41,7 @@ async function main() {
   copyFileSync(path.join(FONT, 'pretendardvariable-dynamic-subset.css'), path.join(DIST, 'fonts', 'pretendard.css'));
   cprf(path.join(FONT, 'woff2-dynamic-subset'), path.join(DIST, 'fonts', 'woff2-dynamic-subset'));
   writeFileSync(path.join(DIST, '.nojekyll'), '');
-  buildVersus(path.join(DIST, 'versus')); // 8단계 사람 vs 초파리 대전 페이지 (dist 를 비운 뒤라 여기서 같이 굽는다)
+  buildVersus(DIST); // 8단계 대전 추론 페이로드: dist/model/* (+ 옛 /versus/ 링크 리다이렉트)
   const sizes = [];
   const walk = (dir, rel = '') => { for (const f of readdirSync(dir)) { const p = path.join(dir, f); const r = path.posix.join(rel, f); if (statSync(p).isDirectory()) walk(p, r); else sizes.push([r, statSync(p).size]); } };
   walk(DIST);

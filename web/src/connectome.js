@@ -1,5 +1,6 @@
 // 커넥톰: 서브샘플 3D (three.js). InstancedMesh 점 + LineSegments 간선 + 반투명 뇌 껍질 GLB.
-// highlightStep(indices) 로 스파이크 재생 시 발화 뉴런을 점등한다. WebGL 이 없으면 null 을 돌려주고 폴백 문구를 보인다.
+// highlightActivity(values) 로 대전 재생 시 뉴런을 활성 세기만큼 점등한다 (7단계 모델은 rate RNN 이라 스파이크가 아니라 활성값이다).
+// WebGL 이 없으면 null 을 돌려주고 폴백 문구를 보인다.
 // setTheme('light'|'dark') 로 배경에 맞춰 층 색을 바꾸고, pause()/resume() 으로 화면 밖에서는 렌더 루프를 멈춘다.
 
 import * as THREE from 'three';
@@ -96,21 +97,27 @@ export function createConnectomeView(container, graph, { mobile = false, assetBa
   }, undefined, () => { /* 껍질 없이도 동작 */ });
 
   // 필터 상태
-  const state = { roi: '', showKC: true, showEdges: true, showShell: true, highlighted: null };
+  // activity: 뷰 인덱스별 0..1 활성 세기 (Float32Array) 또는 null. null 이면 층 색 그대로 그린다.
+  const state = { roi: '', showKC: true, showEdges: true, showShell: true, activity: null };
+  const dimColor = new THREE.Color(), litColor = new THREE.Color();
   function applyFilters() {
+    const act = state.activity;
+    if (act) { dimColor.setHex(palette.dim); litColor.setHex(palette.spike); }
     nodes.forEach((n, k) => {
       const visible = (state.showKC || !n.isKC) && (!state.roi || n.roi === state.roi || n.layer === 'output');
-      const lit = state.highlighted && state.highlighted.has(k);
-      const s = (visible ? 1 : 0) * sizeOf(n) * (lit ? 2.2 : state.highlighted ? 0.75 : 1);
+      const a = act ? act[k] : 0;
+      // 활성 세기를 크기와 색에 같이 싣는다 (0 = 가라앉음, 1 = 완전 점등)
+      const s = (visible ? 1 : 0) * sizeOf(n) * (act ? 0.6 + a * 1.7 : 1);
       dummy.position.set(base[k * 3], base[k * 3 + 1], base[k * 3 + 2]);
       dummy.scale.setScalar(s);
       dummy.updateMatrix();
       mesh.setMatrixAt(k, dummy.matrix);
-      mesh.setColorAt(k, c.setHex(lit ? palette.spike : state.highlighted ? palette.dim : colorOf(n)));
+      if (act) { c.copy(dimColor).lerp(litColor, a); mesh.setColorAt(k, c); }
+      else mesh.setColorAt(k, c.setHex(colorOf(n)));
     });
     mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
     lines.visible = state.showEdges;
-    lines.material.opacity = state.highlighted ? palette.edgeOpacity * 0.4 : palette.edgeOpacity;
+    lines.material.opacity = act ? palette.edgeOpacity * 0.4 : palette.edgeOpacity;
     shell.visible = state.showShell;
     render();
   }
@@ -145,12 +152,12 @@ export function createConnectomeView(container, graph, { mobile = false, assetBa
       paintEdges(); eg.attributes.color.needsUpdate = true;
       applyFilters();
     },
-    // 스파이크 재생: 원 그래프 인덱스(graph.nodes 기준) 집합 → 이 뷰의 인덱스로 변환해 점등. null 이면 해제.
-    highlightStep(graphIndices) {
-      if (!graphIndices) { if (state.highlighted) { state.highlighted = null; applyFilters(); } return; }
-      const set = new Set();
-      for (const gi of graphIndices) { const k = keep.get(gi); if (k !== undefined) set.add(k); }
-      state.highlighted = set; applyFilters();
+    // 대전 재생: graph.nodes 인덱스별 0..1 활성 → 이 뷰의 인덱스로 옮겨 점등. null 이면 해제.
+    highlightActivity(values) {
+      if (!values) { if (state.activity) { state.activity = null; applyFilters(); } return; }
+      const arr = new Float32Array(N);
+      for (let gi = 0; gi < values.length; gi++) { const k = keep.get(gi); if (k !== undefined) arr[k] = values[gi]; }
+      state.activity = arr; applyFilters();
     },
     pause() { paused = true; stopLoop(); },
     resume() { paused = false; resize(); if (!reduced) startLoop(); else render(); },

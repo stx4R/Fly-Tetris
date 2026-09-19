@@ -56,10 +56,12 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 .nav a { height: 44px; border-radius: var(--r-m); padding: 0 14px; display: flex; align-items: center; color: var(--text-2); font-size: 15px; font-weight: 500; transition: background var(--dur-base) var(--ease); }
 .nav a:hover { background: var(--grey-100); color: var(--text-2); }
 .nav a[aria-current="page"] { background: var(--brand-weak); color: var(--brand); font-weight: 600; }
-/* 8단계 대전 페이지 — SPA 라우트가 아니라 별도 페이지라 눈에 띄게 구분한다 */
-.nav a.nav-play { justify-content: space-between; gap: 8px; background: var(--brand-weak); color: var(--brand); font-weight: 600; }
-.nav a.nav-play:hover { background: var(--brand-weak); filter: brightness(0.97); color: var(--brand); }
-.nav a.nav-play span { font-size: 11.5px; font-weight: 500; opacity: 0.75; letter-spacing: -0.01em; }
+/* 파랑 하이라이트는 '지금 보고 있는 화면' 하나에만 쓴다 (aria-current). 대전에도 상시 강조를 두지 않는다. */
+.nav a[data-route="versus"] { justify-content: space-between; gap: 8px; }
+.nav a[data-route="versus"] span { font-size: 11.5px; font-weight: 500; color: var(--text-3); letter-spacing: -0.01em; }
+.nav a[data-route="versus"][aria-current="page"] span { color: var(--brand); opacity: 0.75; }
+.nav-sec { padding: 14px 14px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; color: var(--fg-quaternary); }
+.nav-sec:empty { padding: 6px 0 0; }
 .sidebar-foot { margin-top: auto; display: flex; flex-direction: column; gap: 12px; }
 .info-card { border-radius: var(--r-xl); background: var(--grey-100); padding: 14px; display: flex; flex-direction: column; gap: 4px; }
 .info-card b { font-size: 13px; }
@@ -260,7 +262,7 @@ button { cursor: pointer; border: 0; background: none; padding: 0; }
 @media (min-width: 1000px) { .decision { grid-template-columns: 272px minmax(0, 1fr) minmax(0, 1fr); } }
 .row-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .row-controls .small { flex: 1; min-width: 0; }
-#board-canvas { width: 200px; height: 400px; background: var(--grey-100); border: 1px solid var(--line); border-radius: var(--r-m); display: block; margin: 0 auto; }
+#dec-board { width: 200px; height: 400px; background: var(--grey-100); border: 1px solid var(--line); border-radius: var(--r-m); display: block; margin: 0 auto; }
 .board-info { font-size: 13px; font-weight: 500; color: var(--text-3); line-height: 1.5; }
 .board-info b { color: var(--text); }
 .board-info .chosen { color: var(--green-500); font-weight: 600; }
@@ -300,6 +302,9 @@ svg .grid line, svg .axis line { stroke: var(--line); }
   .nav { flex-direction: row; overflow-x: auto; gap: 4px; scrollbar-width: none; }
   .nav::-webkit-scrollbar { display: none; }
   .nav a { height: 36px; padding: 0 12px; font-size: 14px; flex: 0 0 auto; }
+  /* 가로 스크롤 메뉴에서는 섹션 라벨과 부제를 접는다 */
+  .nav-sec { display: none; }
+  .nav a[data-route="versus"] span { display: none; }
   .topbar { position: static; padding: 14px 16px; }
   .topbar h1 { font-size: 20px; }
   .page { min-height: 0; }
@@ -318,3 +323,123 @@ svg .grid line, svg .axis line { stroke: var(--line); }
   .settings-card { padding: 4px 16px 8px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ---------- 빈 상태 (대전 전에는 보여줄 값이 없다) ---------- */
+.empty-state { padding: 40px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+.empty-icon { width: 72px; height: 72px; margin: 0 auto 20px; border-radius: var(--r-full); background: #ffcf32; display: flex; align-items: center; justify-content: center; }
+.empty-icon i { width: 36px; height: 8px; border-radius: var(--r-full); background: #59371e; }
+.empty-title { font-size: 20px; font-weight: 700; line-height: 1.35; letter-spacing: -0.015em; }
+.empty-desc { margin: 8px auto 20px; max-width: 380px; font-size: 15px; font-weight: 400; line-height: 1.5; color: var(--text-2); }
+.empty-hint { margin: 12px 0 0; font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--text-3); }
+.btn-lg { height: 48px; padding: 0 22px; border-radius: var(--r-l); font-size: 17px; font-weight: 700; }
+.btn-xl { height: 56px; border-radius: var(--r-xl); font-size: 17px; font-weight: 700; }
+
+/* ---------- 홈: 내 전적 ---------- */
+.mini-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px 20px; }
+.ms { display: flex; align-items: baseline; gap: 6px; min-height: 34px; }
+.ms .k { font-size: 13px; font-weight: 500; color: var(--text-3); flex: 1; min-width: 0; }
+.ms .a { font-size: 17px; font-weight: 700; color: var(--brand); }
+.ms .vs { font-size: 11px; font-weight: 500; color: var(--fg-quaternary); }
+.ms .b { font-size: 17px; font-weight: 700; color: var(--text); }
+
+/* ---------- 대전 기록 ---------- */
+.timeline { width: 100%; height: auto; display: block; }
+.list-row.as-button { background: none; border: 0; font: inherit; cursor: pointer; }
+.list-row.on, .list-row.on:hover { background: var(--brand-weak); }
+
+/* ---------- 실험: 이전 단계 보관 ---------- */
+.archive summary { font-size: 14px; font-weight: 600; color: var(--text-2); cursor: pointer; list-style: none; }
+.archive summary::-webkit-details-marker { display: none; }
+.archive summary::before { content: "\25B8  "; color: var(--grey-400); }
+.archive[open] summary::before { content: "\25BE  "; }
+
+/* ---------- 게이트 통과/미달 ---------- */
+.kv .val b.ok { color: var(--green-500); }
+.kv .val b.no { color: var(--red-500); }
+.kv .val .muted { font-weight: 500; color: var(--text-3); }
+
+/* ---------- 설정: 슬라이더 · 키 ---------- */
+.slider { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; width: min(240px, 46%); }
+.slider output { font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.slider input[type=range] { width: 100%; accent-color: var(--brand); }
+.keys { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+.keys span { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; }
+.keys em { font-style: normal; color: var(--text-2); font-weight: 500; margin-left: 3px; }
+kbd { font: 500 11.5px ui-monospace, Menlo, Consolas, monospace; background: var(--grey-100); border: 1px solid var(--line);
+      border-bottom-width: 2px; border-radius: var(--r-xs); padding: 2px 6px; color: var(--text); }
+
+/* ---------- 대전 화면 (SPA 라우트 #/versus) ---------- */
+/* 게임 화면만 스크롤되지 않는다. body.playing 은 대전 라우트에 있는 동안만 붙는다. */
+:root { --cell: 30px; }
+body.playing { overflow: hidden; overscroll-behavior: none; }
+body.playing .app { height: 100vh; min-height: 100vh; }
+.vs-page { height: 100vh; min-height: 0; overflow: hidden; }
+.vs-body { flex: 1; min-height: 0; padding: 20px 32px 24px; background: var(--bg); display: flex; }
+.vs-row { display: flex; gap: 16px; align-items: stretch; justify-content: center; width: 100%; min-height: 0; }
+/* 패널은 내용 폭에 맞춘다 — 보드가 10:22 비율이라 늘리면 안쪽에 죽은 여백이 생긴다 */
+.vs-panel { flex: 0 0 auto; background: var(--surface); border: 1px solid var(--line-subtle);
+            border-radius: var(--r-2xl); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.vs-phead { display: flex; align-items: center; gap: 12px; flex: 0 0 auto; }
+.vs-avatar { width: 44px; height: 44px; border-radius: var(--r-l); display: grid; place-items: center; flex: 0 0 auto; }
+.vs-avatar.me { background: var(--brand-weak); color: var(--brand); font-size: 13px; font-weight: 700; }
+.vs-avatar.fly { background: var(--grey-100); font-size: 20px; }
+.vs-who { min-width: 0; }
+.vs-who b { font-size: 15px; display: block; line-height: 1.3; }
+.vs-who span { font-size: 13px; color: var(--text-3); }
+.vs-badge { margin-left: auto; height: 22px; padding: 0 8px; border-radius: var(--r-s);
+            background: var(--brand-weak); color: var(--brand); font-size: 12px; font-weight: 600;
+            display: inline-flex; align-items: center; white-space: nowrap; }
+.vs-badge.quiet { background: var(--grey-100); color: var(--text-3); }
+
+/* 아래 치수는 모두 --cell 에 비례한다 (셀 30px 기준: side 84 · hold 64 · gap 14 · 가비지 10) */
+.vs-play { display: flex; gap: calc(var(--cell) * 0.4667); align-items: flex-start; justify-content: center; flex: 1; min-height: 0; }
+.vs-side { width: calc(var(--cell) * 2.8); flex: 0 0 auto; display: flex; flex-direction: column; gap: calc(var(--cell) * 0.333); }
+.vs-lab { font-size: clamp(11px, calc(var(--cell) * 0.4), 16px); font-weight: 600; color: var(--text-3); }
+.vs-holdbox { height: calc(var(--cell) * 2.133); border-radius: calc(var(--cell) * 0.4); background: var(--grey-100); display: grid; place-items: center; }
+.vs-holdbox .empty { font-size: clamp(10px, calc(var(--cell) * 0.36), 14px); color: var(--text-3); white-space: nowrap; padding: 0; }
+.vs-nextbox { border-radius: calc(var(--cell) * 0.4); background: var(--grey-100); padding: calc(var(--cell) * 0.4) 0;
+              display: flex; flex-direction: column; gap: calc(var(--cell) * 0.4); align-items: center; }
+.vs-mini { display: grid; gap: 2px; }
+.vs-mini > div { border-radius: calc(var(--cell) * 0.1); }
+.vs-holdbox .vs-mini.used > div { opacity: 0.35; }
+.vs-garbage { width: calc(var(--cell) * 0.333); flex: 0 0 auto; border-radius: var(--r-full); background: var(--grey-200);
+              position: relative; overflow: hidden; align-self: flex-start; }
+.vs-garbage > div { position: absolute; left: 0; right: 0; bottom: 0; border-radius: var(--r-full);
+                    background: var(--orange-500); transition: height 90ms var(--ease); }
+.vs-garbage > div.high { background: var(--red-500); }
+.vs-boardwrap { position: relative; flex: 0 0 auto; }
+.vs-boardwrap canvas { display: block; border-radius: calc(var(--cell) * 0.4); }
+.vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: calc(var(--cell) * 1.27); font-weight: 700;
+            letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; pointer-events: none; }
+.vs-combo span { font-size: calc(var(--cell) * 0.5); font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+
+/* 결과 모달 — 화면 정중앙 */
+.scrim { position: fixed; inset: 0; background: oklch(0 0 0 / 0.56); display: none; z-index: 40; align-items: center; justify-content: center; padding: 24px; }
+.scrim.open { display: flex; }
+.sheet { width: 100%; max-width: 480px; background: var(--surface); border-radius: var(--r-2xl);
+         padding: 28px 24px 22px; display: flex; flex-direction: column; gap: 16px;
+         box-shadow: var(--shadow-3); max-height: 100%; overflow: auto; }
+.sheet .title { text-align: center; }
+.sheet .title b { font-size: 22px; font-weight: 700; letter-spacing: -0.015em; }
+.sheet .title div { font-size: 15px; color: var(--text-2); margin-top: 4px; }
+.sheet .rows { display: flex; flex-direction: column; }
+.sheet .rows .r { min-height: 44px; display: flex; align-items: center; gap: 12px; }
+.sheet .rows .r span.k { font-size: 15px; color: var(--text-2); }
+.sheet .rows .r b { margin-left: auto; font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sheet .rows .r b.brand { color: var(--brand); }
+.sheet .rows .r span.v2 { font-size: 13px; color: var(--text-3); width: 56px; text-align: right; font-variant-numeric: tabular-nums; }
+.sheet .rows .sep { height: 1px; background: var(--line); }
+.sheet .legend { justify-content: center; text-align: center; font-size: 12px; color: var(--text-3); }
+.sheet-actions { display: flex; gap: 10px; }
+.sheet-actions .btn { flex: 1; }
+
+@media (max-width: 899px) {
+  /* 좁은 화면에서는 두 판을 세로로 쌓고 페이지를 스크롤시킨다 (가로로 나란히 두면 보드가 잘린다) */
+  .vs-body { padding: 12px; display: block; }
+  .vs-row { flex-direction: column; align-items: center; gap: 12px; }
+  .vs-panel { padding: 12px; width: 100%; max-width: 520px; }
+  .vs-page { height: auto; overflow: visible; }
+  body.playing { overflow: auto; }
+  body.playing .app { height: auto; }
+  .slider { width: 44%; }
+}
