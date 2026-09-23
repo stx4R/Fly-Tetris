@@ -412,10 +412,43 @@ body.playing .app { height: 100vh; min-height: 100vh; }
 .vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: calc(var(--cell) * 1.27); font-weight: 700;
             letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; pointer-events: none; }
 .vs-combo span { font-size: calc(var(--cell) * 0.5); font-weight: 600; letter-spacing: 0; margin-left: 4px; }
-/* 오른쪽 초파리 — 두 판 옆에 남는 폭을 쓴다 (7~12셀). 자리가 모자라면 versus.js 가 .with-fly 를 떼서 두 판만 가운데 둔다 */
-.vs-flymodel { display: none; flex: 1 1 0; min-width: calc(var(--cell) * 7); max-width: calc(var(--cell) * 12); position: relative; pointer-events: none; }
-.vs-row.with-fly .vs-flymodel { display: block; }
-.vs-flymodel canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* 오른쪽 초파리 — 두 판 옆에 남는 폭을 쓴다 (7~12셀). 자리가 모자라면 versus.js 가 .with-fly 를 떼서 두 판만 가운데 둔다.
+   위: KEYS(누르는 버튼) · LOG(결정 로그) 카드, 아래: 패드를 두드리는 3D. 치수는 --cell 에 비례한다 (가장 좁은 7셀에도 패드가 들어간다). */
+.vs-flymodel { display: none; flex: 1 1 0; min-width: calc(var(--cell) * 7); max-width: calc(var(--cell) * 12);
+               flex-direction: column; gap: 14px; pointer-events: none; }
+.vs-row.with-fly .vs-flymodel { display: flex; }
+.vs-flyhud { flex: 0 0 auto; background: var(--surface); border: 1px solid var(--line-subtle); border-radius: var(--r-2xl);
+             padding: calc(var(--cell) * 0.5); display: flex; flex-direction: column; gap: calc(var(--cell) * 0.3); }
+.vs-pad { display: flex; align-items: center; justify-content: space-evenly; gap: calc(var(--cell) * 0.4);
+          background: var(--grey-100); border-radius: calc(var(--cell) * 0.9); padding: calc(var(--cell) * 0.35) calc(var(--cell) * 0.3); }
+/* 버튼: 꺼지면 흰 바탕 회색 · 누르는 순간 브랜드 블루로 바로 켜지고, 뗄 때만 짧게 흐려진다 */
+.vs-pad [data-key] { display: grid; place-items: center; background: var(--surface); color: var(--grey-400); box-shadow: var(--shadow-1);
+                     transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease); }
+.vs-pad [data-key].on { background: var(--brand); color: #fff; transform: scale(0.92); transition-duration: 0ms; }
+.vs-dpad { display: grid; grid-template-columns: repeat(3, calc(var(--cell) * 0.8)); grid-template-rows: repeat(3, calc(var(--cell) * 0.8)); gap: 2px; }
+.vs-dpad .k, .vs-dpad .hub { border-radius: calc(var(--cell) * 0.14); }
+.vs-dpad .up { grid-area: 1 / 2; } .vs-dpad .left { grid-area: 2 / 1; } .vs-dpad .right { grid-area: 2 / 3; } .vs-dpad .down { grid-area: 3 / 2; }
+.vs-dpad .hub { grid-area: 2 / 2; background: var(--surface); box-shadow: var(--shadow-1); }
+.vs-dpad .k i { width: 38%; aspect-ratio: 1; background: currentColor; clip-path: polygon(50% 14%, 94% 86%, 6% 86%); }
+.vs-dpad .right i { transform: rotate(90deg); } .vs-dpad .down i { transform: rotate(180deg); } .vs-dpad .left i { transform: rotate(270deg); }
+.vs-btns { display: grid; grid-template-columns: repeat(2, var(--cell)); gap: calc(var(--cell) * 0.2) calc(var(--cell) * 0.25); }
+.vs-btns .pill { grid-column: 1 / -1; height: calc(var(--cell) * 0.6); border-radius: var(--r-full);
+                 font-size: clamp(9px, calc(var(--cell) * 0.3), 12px); font-weight: 700; letter-spacing: 0.04em; }
+.vs-btns .round { height: var(--cell); border-radius: 50%; }
+.vs-btns svg { width: 55%; height: 55%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* 로그: 최근 4줄, 새 줄은 맨 아래 · 위로 갈수록 흐리다. 한 줄이 넘치면 말줄임. */
+.vs-log { --logfs: clamp(10px, calc(var(--cell) * 0.32), 13px); height: calc(var(--logfs) * 6); overflow: hidden;
+          display: flex; flex-direction: column; justify-content: flex-end;
+          font: 500 var(--logfs)/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--brand); }
+#vs-flyLog { transition: transform var(--dur-base) var(--ease); }
+.vs-logline { display: flex; white-space: nowrap; overflow: hidden; opacity: 0.25; }
+.vs-logline span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; } /* 생각 쪽만 줄이고 착수·결과는 남긴다 */
+.vs-logline span + span { flex: none; }
+.vs-logline:nth-last-child(3) { opacity: 0.45; }
+.vs-logline:nth-last-child(2) { opacity: 0.7; }
+.vs-logline:last-child { opacity: 1; }
+.vs-flystage { flex: 1 1 auto; min-height: 0; position: relative; }
+.vs-flystage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* 결과 모달 — 화면 정중앙 */
 .scrim { position: fixed; inset: 0; background: oklch(0 0 0 / 0.56); display: none; z-index: 40; align-items: center; justify-content: center; padding: 24px; }
