@@ -11,6 +11,7 @@
 // 사람 쪽 입력 감도(중력·소프트드롭·DAS·ARR)는 설정 화면에서 온다.
 //
 // 워커·모델(6 MB)은 이 화면에 처음 들어올 때 띄운다. 다른 화면만 보는 사람은 받지 않는다.
+// 오른쪽의 두드리는 초파리 3D(versus-fly.js, 2 MB)도 같은 때 읽는다.
 
 import { createMatch, flyPlace, flySnapshot, tickHuman, viewOf } from '../play/match.js';
 import { DEFAULT_TUNING, NO_KEYS } from '../play/kinematics.js';
@@ -19,6 +20,7 @@ import { HEIGHT, SHAPES, WIDTH } from '../../src/tetris.js';
 import { boardFeatures, wellDepth } from '../../src/teacher-attack.js';
 import { addDecision, endMatch, sampleQuality, startMatch } from './matchlog.js';
 import { tuningOf } from './settings.js';
+import { createVersusFly } from './versus-fly.js';
 
 const FLY_PLACE_MS = 150;     // 초파리 착수 간격 (고정 — 사용자가 조절하지 못한다)
 const DECIDE_TIMEOUT_MS = 8000; // 결정이 이만큼 안 오면 워커가 막힌 것으로 보고 다시 요청한다
@@ -45,7 +47,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
   let renderers = null, match = null, worker = null, ready = false, workerFailed = false;
   let pendingId = 0, waitingId = 0, pendingDecision = null, awaiting = false, askedAt = 0;
   let flyNextAt = 0, lastThinkMs = null, thinkMs = [], matchId = null, recorded = false;
-  let last = 0, rafId = 0;
+  let last = 0, rafId = 0, flyModel = null;
 
   const tuning = () => ({ ...DEFAULT_TUNING, ...tuningOf(settings) });
 
@@ -212,6 +214,8 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     const dt = Math.min(100, now - last);
     last = now;
     step(dt, now);
+    // 오른쪽 초파리는 초파리가 실제로 두는 동안만 두드린다 (시작 전 · 일시정지 · 판 종료 · 워커 준비 전에는 멈춤)
+    flyModel?.update(dt, started && !paused && !!match && !match.over && ready && !workerFailed);
   }
 
   // ---------- 입력 ----------
@@ -258,21 +262,26 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
   // 가로로 필요한 셀 수: 사이드 2.8 + 간격 0.4667 + 가비지 0.333 + 간격 0.4667 + 보드 10 = 14.0667
   const COLS_TOTAL = 2.8 + 0.4667 + 0.3333 + 0.4667 + WIDTH;
   const PANEL_PAD = 40, PANEL_GAP = 14, ROW_GAP = 16;
-  function pickCell() {
+  // 오른쪽 초파리 자리(.vs-flymodel)의 최소 폭 (셀 단위, style.css 의 min-width 와 같은 값). 보드가 우선이라
+  // 이 자리를 남기느라 셀이 10% 넘게 작아지면 초파리를 빼고 두 판만 둔다.
+  const FLY_MIN_COLS = 7, FLY_MAX_SHRINK = 0.9;
+  const clampCell = (c) => Math.max(10, Math.min(64, Math.floor(c)));
+  function pickLayout() {
     const row = document.querySelector('.vs-row');
     const head = document.querySelector('.vs-phead');
     const h = row?.clientHeight ?? 0, w = row?.clientWidth ?? 0;
-    if (!h || !w) return renderers?.human.cell ?? 30;       // 화면 밖(hidden)이면 지금 값을 유지한다
-    // 좁은 화면에서는 두 판을 세로로 쌓는다 (CSS) — 그때는 높이가 아니라 가로폭만 제약이다.
+    if (!h || !w) return { cell: renderers?.human.cell ?? 30, fly: !!row?.classList.contains('with-fly') }; // 화면 밖(hidden)이면 지금 값을 유지한다
+    // 좁은 화면에서는 두 판을 세로로 쌓는다 (CSS) — 그때는 높이가 아니라 가로폭만 제약이고, 초파리는 뺀다.
     const stacked = row && getComputedStyle(row).flexDirection === 'column';
-    const availW = (stacked ? w : (w - ROW_GAP) / 2) - PANEL_PAD;
-    const byW = availW / COLS_TOTAL;
-    if (stacked) return Math.max(10, Math.min(64, Math.floor(byW)));
-    const availH = h - PANEL_PAD - (head?.offsetHeight ?? 44) - PANEL_GAP;
-    return Math.max(10, Math.min(64, Math.floor(Math.min(availH / ROWS, byW))));
+    if (stacked) return { cell: clampCell((w - PANEL_PAD) / COLS_TOTAL), fly: false };
+    const byH = (h - PANEL_PAD - (head?.offsetHeight ?? 44) - PANEL_GAP) / ROWS;
+    const plain = clampCell(Math.min(byH, ((w - ROW_GAP) / 2 - PANEL_PAD) / COLS_TOTAL));
+    const withFly = clampCell(Math.min(byH, (w - 2 * ROW_GAP - 2 * PANEL_PAD) / (2 * COLS_TOTAL + FLY_MIN_COLS)));
+    return withFly >= plain * FLY_MAX_SHRINK ? { cell: withFly, fly: true } : { cell: plain, fly: false };
   }
   function buildRenderers(force = false) {
-    const cell = pickCell();
+    const { cell, fly } = pickLayout();
+    document.querySelector('.vs-row')?.classList.toggle('with-fly', fly);
     if (!force && renderers && renderers.human.cell === cell) return;
     document.documentElement.style.setProperty('--cell', `${cell}px`); // CSS 치수가 전부 여기에 비례한다
     renderers = { human: createRenderer(humanCanvas, { cell }), fly: createRenderer(flyCanvas, { cell }) };
@@ -296,6 +305,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     active = true;
     document.body.classList.add('playing');
     bootWorker();
+    flyModel ??= createVersusFly($('vs-flyModel'), { url: `models/fly_tapping.glb${ver}` });
     if (!match) newMatch();
     buildRenderers(true);
     last = performance.now();
@@ -318,7 +328,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     get started() { return started; }, get paused() { return paused; }, get ready() { return ready; },
     get active() { return active; }, get awaiting() { return awaiting; }, get failed() { return workerFailed; },
     get pending() { return pendingDecision; }, get nextAt() { return flyNextAt - performance.now(); }, get matchId() { return matchId; },
-    get cell() { return renderers?.human.cell; }, tuning, flyPlaceMs: FLY_PLACE_MS,
+    get cell() { return renderers?.human.cell; }, get flyModel() { return flyModel; }, tuning, flyPlaceMs: FLY_PLACE_MS,
     step, newMatch,
     press(code) { dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true, cancelable: true })); },
     release(code) { dispatchEvent(new KeyboardEvent('keyup', { code, bubbles: true, cancelable: true })); },

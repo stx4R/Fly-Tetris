@@ -412,6 +412,10 @@ body.playing .app { height: 100vh; min-height: 100vh; }
 .vs-combo { position: absolute; left: 0; right: 0; top: 44%; text-align: center; font-size: calc(var(--cell) * 1.27); font-weight: 700;
             letter-spacing: -0.02em; color: var(--brand); font-variant-numeric: tabular-nums; pointer-events: none; }
 .vs-combo span { font-size: calc(var(--cell) * 0.5); font-weight: 600; letter-spacing: 0; margin-left: 4px; }
+/* 오른쪽 초파리 — 두 판 옆에 남는 폭을 쓴다 (7~12셀). 자리가 모자라면 versus.js 가 .with-fly 를 떼서 두 판만 가운데 둔다 */
+.vs-flymodel { display: none; flex: 1 1 0; min-width: calc(var(--cell) * 7); max-width: calc(var(--cell) * 12); position: relative; pointer-events: none; }
+.vs-row.with-fly .vs-flymodel { display: block; }
+.vs-flymodel canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* 결과 모달 — 화면 정중앙 */
 .scrim { position: fixed; inset: 0; background: oklch(0 0 0 / 0.56); display: none; z-index: 40; align-items: center; justify-content: center; padding: 24px; }

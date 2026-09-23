@@ -215,6 +215,7 @@ scripts/calibrate.js            시드 랜덤 탐색 + 재평가 + 게이트 →
 scripts/collect.js              afterstate 수집 → data/afterstates.json
 scripts/search-separation.js    5단계 1부 분리 동작점 탐색
 scripts/build-viz-data.js  build-web.js  serve-web.js  deploy-pages.js   8단계 1차 시각화 데이터·번들·로컬 서버·Pages 배포
+scripts/export-fly-tapping.py   대전 초파리 모델 변환 (Blender: 원본 .blend → 폴리곤 감축 + 2 s 루프 GLB)
 scripts/tune-teacher.js  teacher-worker.js   6단계 공격형 교사 CEM 튜닝 (워커: evaluate / play / collect)
 scripts/collect-versus.js       6단계 대전 결정 데이터 수집
 scripts/rank-train.js  rank-worker.js      6단계 랭킹 손실 검증 실행 (리저버 특징은 experiment-worker 의 featurize-boards)
@@ -226,6 +227,7 @@ src/stage7-data.js  stage7-train.js  stage7-agent.js   u 인코딩·K 부분집�
 web/index.html  web/style.css    정적 사이트 셸 (10화면 한 문서, 해시 라우터로 hidden 토글)
 web/src/{main,router,util,settings,empty,pack}.js                     진입점 · 라우터 · 소도구 · 설정(대전 조작 + 표시) · 빈 상태 · 값 포장(보드 비트·바이트 양자화)
 web/src/{versus,fly-worker,matchlog}.js                               대전 루프 · 추론 워커(모델 점수 + 교사 점수 + 활성 트레이스, 별도 번들) · 기록 저장소(IndexedDB)
+web/src/versus-fly.js                                                 대전 화면 오른쪽의 패드를 두드리는 초파리 3D (대전 상태 연동; 모델은 scripts/export-fly-tapping.py 로 줄인 public/models/fly_tapping.glb)
 web/src/{connectome,decision,activity,analysis,matches,heatmap}.js    대전에서 나오는 화면들
 web/src/{home,experiments,compare}.js                                 오프라인 실측 화면들
 web/play/{kinematics,match,render}.js                                 실시간 조작 상태 머신 · 대전 상태 머신 · 보드 렌더 (워커·메인 공용)
