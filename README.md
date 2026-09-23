@@ -228,9 +228,11 @@ web/index.html  web/style.css    정적 사이트 셸 (10화면 한 문서, 해�
 web/src/{main,router,util,settings,empty,pack}.js                     진입점 · 라우터 · 소도구 · 설정(대전 조작 + 표시) · 빈 상태 · 값 포장(보드 비트·바이트 양자화)
 web/src/{versus,fly-worker,matchlog}.js                               대전 루프 · 추론 워커(모델 점수 + 교사 점수 + 활성 트레이스, 별도 번들) · 기록 저장소(IndexedDB)
 web/src/versus-fly.js                                                 대전 화면 오른쪽의 패드를 두드리는 초파리 3D (대전 상태 연동; 모델은 scripts/export-fly-tapping.py 로 줄인 public/models/fly_tapping.glb)
+web/src/versus-flyhud.js                                              그 위의 KEYS(초파리 착수를 역산한 버튼 입력) · LOG(결정 한 줄: 후보 수 · 생각 시간 · 착수 · 결과) — 시각 효과
 web/src/{connectome,decision,activity,analysis,matches,heatmap}.js    대전에서 나오는 화면들
 web/src/{home,experiments,compare}.js                                 오프라인 실측 화면들
 web/play/{kinematics,match,render}.js                                 실시간 조작 상태 머신 · 대전 상태 머신 · 보드 렌더 (워커·메인 공용)
+web/play/inputs.js                                                    초파리 입력 역산: 고른 배치까지의 최단 버튼 경로 (스폰에서 BFS, KEYS 위젯용)
 scripts/build-stage7-web.js     7단계 실행 산출물 → web/data/stage7.json (없는 값은 만들지 않는다)
 scripts/estimate-budget-stage5.js  4·5단계 소요 추정
 scripts/experiment.js  experiment-worker.js  pool.js  experiment-config.js   4단계 실험 (조건별 캐시, 재개 가능)

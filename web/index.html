@@ -171,8 +171,30 @@
         </div>
       </section>
 
-      <!-- 패드를 두드리는 초파리 (장식, 대전 상태를 따라 움직인다) -->
-      <div class="vs-flymodel" aria-hidden="true"><canvas id="vs-flyModel"></canvas></div>
+      <!-- 초파리 쪽 연출 (시각 효과, 대전 상태를 따라 움직인다): 누르는 버튼 · 결정 로그 · 패드를 두드리는 3D -->
+      <div class="vs-flymodel" aria-hidden="true">
+        <div class="vs-flyhud">
+          <div class="vs-lab">KEYS</div>
+          <div class="vs-pad" id="vs-flyKeys">
+            <div class="vs-dpad">
+              <span class="k up" data-key="up"><i></i></span>
+              <span class="k left" data-key="left"><i></i></span>
+              <span class="hub"></span>
+              <span class="k right" data-key="right"><i></i></span>
+              <span class="k down" data-key="down"><i></i></span>
+            </div>
+            <div class="vs-btns">
+              <span class="pill" data-key="hold">HOLD</span>
+              <span class="round" data-key="ccw"><svg viewBox="0 0 16 16"><path d="M3.5 8a4.5 4.5 0 1 0 1.3-3.2M3 2.5v3.3h3.3"/></svg></span>
+              <span class="round" data-key="cw"><svg viewBox="0 0 16 16"><path d="M12.5 8a4.5 4.5 0 1 1-1.3-3.2M13 2.5v3.3H9.7"/></svg></span>
+              <span class="pill" data-key="drop">DROP</span>
+            </div>
+          </div>
+          <div class="vs-lab">LOG</div>
+          <div class="vs-log"><div id="vs-flyLog"></div></div>
+        </div>
+        <div class="vs-flystage"><canvas id="vs-flyModel"></canvas></div>
+      </div>
     </div>
   </div>
 </section>

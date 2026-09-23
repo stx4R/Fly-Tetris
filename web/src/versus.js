@@ -11,16 +11,19 @@
 // 사람 쪽 입력 감도(중력·소프트드롭·DAS·ARR)는 설정 화면에서 온다.
 //
 // 워커·모델(6 MB)은 이 화면에 처음 들어올 때 띄운다. 다른 화면만 보는 사람은 받지 않는다.
-// 오른쪽의 두드리는 초파리 3D(versus-fly.js, 2 MB)도 같은 때 읽는다.
+// 오른쪽의 두드리는 초파리 3D(versus-fly.js, 2 MB)도 같은 때 읽는다. 그 위의 KEYS · LOG(versus-flyhud.js)는
+// 초파리의 착수를 버튼 입력(역산)과 결정 한 줄로 보여주는 시각 효과다 — 게임 진행에는 관여하지 않는다.
 
-import { createMatch, flyPlace, flySnapshot, tickHuman, viewOf } from '../play/match.js';
+import { createMatch, flyPlace, flySnapshot, holdPiece, tickHuman, viewOf } from '../play/match.js';
 import { DEFAULT_TUNING, NO_KEYS } from '../play/kinematics.js';
+import { inputPath } from '../play/inputs.js';
 import { ROWS, SHOW_BUFFER, createRenderer, miniGrid } from '../play/render.js';
 import { HEIGHT, SHAPES, WIDTH } from '../../src/tetris.js';
 import { boardFeatures, wellDepth } from '../../src/teacher-attack.js';
 import { addDecision, endMatch, sampleQuality, startMatch } from './matchlog.js';
 import { tuningOf } from './settings.js';
 import { createVersusFly } from './versus-fly.js';
+import { createFlyHud, flyLogLine } from './versus-flyhud.js';
 
 const FLY_PLACE_MS = 150;     // 초파리 착수 간격 (고정 — 사용자가 조절하지 못한다)
 const DECIDE_TIMEOUT_MS = 8000; // 결정이 이만큼 안 오면 워커가 막힌 것으로 보고 다시 요청한다
@@ -35,6 +38,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     fly: { hold: $('vs-flyHold'), next: $('vs-flyNext'), garbage: $('vs-flyGarbage'), combo: $('vs-flyCombo'), badge: $('vs-flyBadge') },
   };
   const resultScrim = $('vs-resultScrim');
+  const flyHud = createFlyHud($('vs-flyKeys'), $('vs-flyLog'));
 
   const KEYMAP = {
     ArrowLeft: 'left', ArrowRight: 'right', ArrowDown: 'softDrop', Space: 'hardDrop',
@@ -45,7 +49,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
   let paused = false, started = false, active = false;
 
   let renderers = null, match = null, worker = null, ready = false, workerFailed = false;
-  let pendingId = 0, waitingId = 0, pendingDecision = null, awaiting = false, askedAt = 0;
+  let pendingId = 0, waitingId = 0, pendingDecision = null, pendingInfo = null, awaiting = false, askedAt = 0;
   let flyNextAt = 0, lastThinkMs = null, thinkMs = [], matchId = null, recorded = false;
   let last = 0, rafId = 0, flyModel = null;
 
@@ -64,6 +68,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     $('vs-rLinesB').textContent = `${f.player.stats.lines} · ${f.player.stats.tetris}`;
     $('vs-rThink').textContent = lastThinkMs !== null ? `${lastThinkMs} ms/수` : '—';
     resultScrim.classList.add('open');
+    flyHud.log(match.winner === 'fly' ? 'opponent topped out → WIN' : match.winner === 'human' ? 'topped out → LOSE' : 'piece cap → DRAW');
     if (matchId) { endMatch(matchId, match, thinkMs); onRecord?.(); }
   }
   const hideResult = () => resultScrim.classList.remove('open');
@@ -71,9 +76,10 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
   function newMatch() {
     for (const k of Object.keys(keys)) keys[k] = false; // 직전 판에서 눌려 있던 키가 새 판으로 새지 않게
     hideResult();
+    if (match) flyHud.log('new match');
     const seed = (Math.random() * 1e9) | 0;
     match = createMatch({ seedHuman: seed, seedFly: seed, garbageSeed: seed ^ 0x5bf03635, tuning: tuning(), cap: 5000 });
-    pendingDecision = null; awaiting = false; pendingId++; lastThinkMs = null;
+    pendingDecision = null; pendingInfo = null; awaiting = false; pendingId++; lastThinkMs = null;
     thinkMs = []; recorded = false;
     matchId = startMatch({ seed, flyPlaceMs: FLY_PLACE_MS, model: 'C0 (7단계 A-4′)' });
     flyNextAt = performance.now() + 1200; // 시작 직후 한 박자 여유
@@ -107,6 +113,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     if (m.type === 'ready') {
       ready = true;
       setFlyBadge('생각 중', false);
+      flyHud.log(`C0 ready · ${m.backend} · ${m.loadMs}ms`);
       requestFlyDecision();
       return;
     }
@@ -114,6 +121,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
       awaiting = false;
       if (m.id !== waitingId) return;   // 리매치 등으로 버려진 결정
       pendingDecision = m.cand;
+      pendingInfo = { ms: m.ms, cands: m.detail?.candidates.length ?? null }; // LOG 한 줄에 쓴다
       lastThinkMs = m.ms;
       thinkMs.push(m.ms);
       if (m.detail && matchId) { addDecision(matchId, m.detail, m.ms); onRecord?.(); }
@@ -142,6 +150,7 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
       console.error('워커를 띄우지 못했어요:', err);
       return;
     }
+    flyHud.log('loading C0…');
     worker.onmessage = onWorkerMessage;
     worker.onerror = (e) => {
       workerFailed = true; awaiting = false;
@@ -198,8 +207,15 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
       if (awaiting && now - askedAt > DECIDE_TIMEOUT_MS) { awaiting = false; console.warn('초파리 결정이 늦어 다시 요청해요'); }
       if (!pendingDecision && !awaiting) requestFlyDecision();
       if (pendingDecision && now >= flyNextAt) {
-        const ev = flyPlace(match, pendingDecision);
-        if (ev) sample('fly', ev);
+        const cand = pendingDecision, before = match.fly.player;
+        const piece = cand.useHold ? holdPiece(before) : before.current;
+        const inputs = inputPath(before.board, piece, cand); // 놓기 전 보드 기준 (KEYS 위젯용)
+        const ev = flyPlace(match, cand);
+        if (ev) {
+          sample('fly', ev);
+          flyHud.press(inputs ?? ['hardDrop'], now);
+          flyHud.log(flyLogLine({ n: match.fly.pieces, piece, useHold: cand.useHold, ...pendingInfo, rot: cand.rot, col: cand.col, event: ev }));
+        }
         pendingDecision = null;
         flyNextAt = now + FLY_PLACE_MS;
         if (!match.over) requestFlyDecision();
@@ -214,8 +230,10 @@ export function createVersusView({ settings, sampled = null, onRecord = null, bu
     const dt = Math.min(100, now - last);
     last = now;
     step(dt, now);
-    // 오른쪽 초파리는 초파리가 실제로 두는 동안만 두드린다 (시작 전 · 일시정지 · 판 종료 · 워커 준비 전에는 멈춤)
-    flyModel?.update(dt, started && !paused && !!match && !match.over && ready && !workerFailed);
+    // 오른쪽 초파리(3D · KEYS)는 초파리가 실제로 두는 동안만 움직인다 (시작 전 · 일시정지 · 판 종료 · 워커 준비 전에는 멈춤)
+    const flyActive = started && !paused && !!match && !match.over && ready && !workerFailed;
+    flyModel?.update(dt, flyActive);
+    flyHud.update(now, flyActive);
   }
 
   // ---------- 입력 ----------
