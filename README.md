@@ -1,7 +1,149 @@
-# Fly
+# Fly v0.13.6
 
-초파리 hemibrain 커넥톰의 **배선 구조**를 제약으로 가진 네트워크로 테트리스(대전 규칙)를 시뮬레이션하는 프로젝트. 최종 산출물은 GitHub Pages 웹(대전 UI) + 보고서.
+ 안녕하십니까?  **Fly** 프로젝트의 개발자 유이준입니다.  
+위 마크다운 문서에서는 초파리 hemibrain 커넥톰의 **배선 구조**를 제약으로 가진 네트워크로 테트리스(대전 규칙)를 시뮬레이션하는 프로젝트(총칭 : Fly)에 관한 모든 정보들을 제공하고 있습니다.  
+최종 산출물은 GitHub Pages 웹(대전 UI, <https://stx4r.github.io/Fly/>) + 보고서입니다.  
+또한 모든 개발과 피드백의 근간은 위 문서에서 이루어지니, 참고해주시면 감사할 것 같습니다.  
+추가로, 저작권은 <code>MPL 2.0 LICENSE</code>를 따르고 있으니 라이선스를 준수해주십시오.
 
+## 목차
+1. [Development - 업데이트 진행 사항](#release-notes)  
+2. [Development - 업데이트 예정 사항](#upcoming-changes)  
+3. [Development - 업데이트 논의 사항](#backlog)  
+4. [GuideLines - 지원 기기](#target-device)  
+5. [GuideLines - 접속](#installation)  
+6. [GuideLines - 조작법](#controls)  
+7. [GuideLines - 로컬 실행](#local-setup)  
+8. [GuideLines - 사용법](#user-guide)  
+9. [Research - 프로젝트 개요 및 현재 단계](#overview)  
+10. [Research - 명령어](#commands)  
+11. [Research - 단계별 기록](#stage-log)  
+12. [Research - 알려진 한계](#known-limitations)  
+13. [Research - 코드 구조](#code-structure)  
+14. [LICENSE](#-license-)
+
+## < Development >
+### Release Notes.
+<pre><code>( 진행 완료 ) v0.1.0 LICENSE (MPL 2.0)   
+( 진행 완료 ) v0.2.0 Connectome Extract, Tetris Core, LIF Reservoir   
+( 진행 완료 ) v0.3.0 Calibration v2, Spectral Radius, Probe, ESN (Plan B)   
+( 진행 완료 ) v0.4.0 Afterstate, Null Models, Readout, Experiment Pipeline   
+( 진행 완료 ) v0.5.0 Separation Search   
+( 진행 완료 ) v0.6.0 Visualization Console v1, GitHub Pages Deploy   
+( 진행 완료 ) v0.7.0 Sidebar Console, Hash Router, Settings   
+( 진행 완료 ) v0.7.1 Deploy Script Fixed.   
+( 진행 완료 ) v0.8.0 Favicon, Profile, Branding   
+( 진행 완료 ) v0.8.1 Repository Cleanup.   
+( 진행 완료 ) v0.9.0 Versus Engine, Attack Teacher, Rank Training, Sparse RNN   
+( 진행 완료 ) v0.9.1 Stage 7 Pilot Data.   
+( 진행 완료 ) v0.10.0 Stage 7 Phase A, WASM Kernels, Checkpoint Resume   
+( 진행 완료 ) v0.10.1 Stage 7 Phase B Nulls (N1/N2/N3), Smoke   
+( 진행 완료 ) v0.11.0 Realtime Versus (Kinematics, Match, Fly Worker)   
+( 진행 완료 ) v0.11.1 Held-key Repeat Bug Fixed.   
+( 진행 완료 ) v0.11.2 Input Tuning, Piece Render Offset Fixed.   
+( 진행 완료 ) v0.12.0 Versus UI Rework   
+( 진행 완료 ) v0.12.1 Versus HUD Patches.   
+( 진행 완료 ) <b>v0.13.0 Versus Merged into Console, Match Log, Decision / Activity / Analysis Pages</b>   
+( 진행 완료 ) v0.13.1 Cache Busting (Build ID).   
+( 진행 완료 ) v0.13.2 Stale Shell Auto Reload.   
+( 진행 완료 ) v0.13.3 Stale Shell Detection Fixed.   
+( 진행 완료 ) v0.13.4 Repository Cleanup.   
+( 진행 완료 ) v0.13.5 Tapping Fly 3D   
+( 진행 완료 ) v0.13.6 Fly HUD (KEYS · LOG)   </code></pre>  
+---    
+### Upcoming Changes.
+<pre><code>1. 7단계 Phase B 재개 — 배선 대조군 N1 / N2 / N3 학습 (N1 round 0 epoch 10 에서 중단)  
+2. 9단계 보고서</code></pre>  
+---
+### Backlog.
+<pre><code>7단계 플레이 게이트 미달 이후의 다음 축 (docs/stage7-wiring-constraint.md §5.3, 결정 대기)  
+1. 음성 구성 (교사 선택 + 상위 3 + 무작위 4 등 mixed negatives)  
+2. 학습 데이터 8k → 24k+ 결정  
+3. DAgger 규모 확대  
+4. 플레이 시 얕은 탐색  
+5. 정규화  
+6. 중간 게이트</code></pre>  
+
+---
+## < GuideLines >
+### Target Device.
+[ Desktop / Laptop ]  
+물리 키보드가 있는 환경의 최신 웹 브라우저 (Chrome, Edge, Firefox, Safari)  
+  
+[ Mobile ]  
+사이드바가 상단 바로 접히고 대전 판이 세로로 쌓이지만, 대전은 키보드 조작이라 열람용으로 권장함.  
+  
+※ WebGL 이 없어도 3D(커넥톰 · 대전 초파리)를 제외한 나머지 화면은 동작합니다.  
+※ reduced-motion 설정을 존중합니다 (3D 자동 회전 기본 꺼짐).
+
+---
+### Installation.
+별도 설치가 필요하지 않습니다.
+1. 웹 브라우저로 <https://stx4r.github.io/Fly/> 에 접속
+2. 사이드바의 '대전' 또는 홈의 '대전하기' 버튼 클릭
+3. 대전 기록은 이 브라우저의 IndexedDB 에만 저장되며, 외부로 전송되지 않습니다.  
+---
+### Controls.  
+대전 화면(`#/versus`)의 키보드 조작입니다.  
+중력 · 소프트드롭 · DAS · ARR 은 설정 화면에서 조절할 수 있으며, 초파리 쪽에는 영향이 없습니다.
+
+| 키 | 동작 |
+|---|---|
+| ← / → | 이동 |
+| ↓ | 소프트드롭 |
+| Space | 하드드롭 |
+| ↑ / X | 회전 |
+| Z | 반대 회전 |
+| A | 180° 회전 |
+| C / Shift | 홀드 |
+| P | 일시정지 |
+| R | 리매치 |
+
+---
+### Local Setup.  
+Node.js 20 이상이 필요합니다. 커밋된 `data/connectome.json` · `data/stage7/c0.model.*` · `web/data/` 로 바로 빌드됩니다.
+```bash
+npm install
+npm run build      # esbuild 번들 → web/dist (외부 요청 0)
+npm run serve      # 로컬 점검 http://localhost:8123
+npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
+```
+연구 파이프라인(추출 · 캘리브레이션 · 학습) 명령어는 [Commands.](#commands) 에 있습니다.
+
+---
+### User Guide.
+#### Sidebar - 홈  
+* 대전하기 버튼, 내 전적, 7단계 게이트 5기준, 학습 전 / 후 / 우연 순위 막대를 한눈에 볼 수 있습니다.  
+#### Sidebar - 대전  
+**※ 사람(키보드) vs 학습된 C0 의 실시간 대전입니다. 같은 엔진 · 같은 조각 순서로 진행됩니다. ※**  
+* 규칙은 hold 1칸 · next 5 · 가비지 · 가이드라인 공격(테트리스 4줄, T-스핀, 콤보, 퍼펙트 클리어)을 따릅니다.  
+* 초파리는 150 ms 간격으로 한 수를 두며, 이 간격과 모델은 설정에서 바꿀 수 없습니다.  
+* 화면 오른쪽의 3D 초파리가 대전 상태에 맞춰 패드를 두드립니다.  
+    * KEYS 는 초파리가 고른 배치까지의 최단 버튼 입력을 역산한 것이고, LOG 는 결정 한 줄(후보 수 · 생각 시간 · 착수 · 결과)입니다.  
+#### Sidebar - 대전 기록  
+* 최근 20판의 전적과 공격 주고받기 타임라인을 확인할 수 있습니다.  
+* 한 판도 두지 않았다면 빈 상태가 표시됩니다 — 값을 지어내지 않습니다.  
+#### Sidebar - 커넥톰  
+* 층화 표본 907 뉴런 · 5,963 시냅스를 3D 로 보여주며, 대전 중 활성 세기에 따라 점등됩니다.  
+#### Sidebar - 결정 탐색  
+* 초파리가 둔 한 수의 후보 썸네일, DN 107개 히트맵, 모델 순위 ↔ 교사 순위 bump chart 를 확인할 수 있습니다.  
+#### Sidebar - 신경 활동  
+* 표본 907 뉴런 × 25 스텝의 활성 래스터, 층별 평균 |활성| 추이를 재생할 수 있습니다.  
+#### Sidebar - 플레이 분석  
+* 구멍 · 높이 추이를 사람과 나란히 비교하고, 교사 순위 분포와 줄 구성을 확인할 수 있습니다.  
+#### Sidebar - 실험  
+* 7단계 실행 5개와 6단계 보관 실험의 오프라인 실측 결과를 확인할 수 있습니다.  
+#### Sidebar - 조건 비교  
+* 플레이(초파리 ↔ 교사 ↔ 무작위), 순위(학습 후 ↔ 학습 전 ↔ 우연), 게이트 비율, 줄 구성을 비교합니다.  
+    * 대조군 N1 · N2 · N3 는 아직 학습되지 않아 **'아직 학습하지 않음'** 으로 비워 둡니다.  
+#### Sidebar - 설정
+* 표시: 3D 자동 회전, 3D 어두운 배경, 신뢰구간이 겹치는 항목 회색 처리, 본문 숫자 고정폭.  
+* 조작: 중력 · 소프트드롭 · DAS · ARR (사람 쪽 입력 감도).  
+* 설정은 이 브라우저의 localStorage 에 저장되며, 초기화 버튼으로 기본값으로 되돌릴 수 있습니다.  
+
+---
+## < Research >
+### Overview.
 **프로젝트 주장 (6단계에서 변경).** 1–5단계는 커넥톰의 시냅스 수를 *고정 가중치*로 쓰는 리저버였고, 그 결과는 음성이었다 (결정 내 순위 정보 없음,
 플레이 무작위 수준 — `docs/stage5-separation.md`, 근거 장으로 유지). 7단계부터 커넥톰에서 오는 것은 **배선 구조(희소성 마스크)뿐이고 가중치는 학습된다.**
 정확한 표현은 "초파리 커넥톰 배선 제약을 가진 네트워크" 다. "초파리가 테트리스를 학습했다" 류의 표현은 어디에도 쓰지 않는다.
@@ -15,7 +157,8 @@
 C0 50 게임 기준선과 smoke 까지 끝낸 뒤 N1 의 round 0 epoch 10 에서 **중단**했다. 재개는 `cmd /c data\stage7\run-phaseb-chain.cmd`
 한 줄이고, 중단 지점·대조군 정의·재개 주의사항은 `docs/stage7-wiring-constraint.md` 의 "Phase B — 2026-09-19 중단 상태" 절에 있다.
 
-## 사용
+---
+### Commands.
 
 ```bash
 # 토큰: 환경변수 NEUPRINT_TOKEN 또는 .env / .env.local (커밋 금지)
@@ -45,7 +188,9 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 
 `data/raw/` 는 API raw 응답 캐시다. 재실행 시 API 를 다시 호출하지 않는다. 처음부터 다시 뽑으려면 지운다.
 
-## 데이터 (1단계)
+---
+### Stage Log.
+#### 1단계 — 데이터
 
 - 소스: [neuPrint](https://neuprint.janelia.org) `hemibrain:v1.2.1`, Cypher via `/api/custom/custom`
 - 입력층: type `LC*`, `LPLC*` (시각 투사 뉴런; `LCNO*` 는 중앙복합체 뉴런이라 제외)
@@ -62,7 +207,7 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 출력: `data/connectome.json` (minified, 런타임 번들용), `data/connectome.meta.json` (meta 만 pretty).
 `edges` 의 인덱스는 `neurons` 배열 위치 인덱스다 (bodyId 아님). 뉴런 순서는 input → hidden → output 블록.
 
-## 시뮬레이션 코어 (2단계)
+#### 2단계 — 시뮬레이션 코어
 
 - **테트리스** (`src/tetris.js`): 10×20, 7-bag, SRS 4 회전 상태, 배치 단위 API (하드드롭만).
   행동 = (col, rot) 40개. next piece 는 노출하지 않는다.
@@ -82,7 +227,7 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - **디코딩** (`src/decode.js`): 107×40 선형 리드아웃, 불법 배치 마스킹 후 argmax. 2단계는 시드 랜덤 초기화만.
 - **결정성**: 모든 난수는 xorshift128+ (`src/prng.js`). 같은 시드·입력이면 비트 동일.
 
-## 캘리브레이션 v2 (3단계)
+#### 3단계 — 캘리브레이션 v2
 
 - **지표** (`src/metrics.js`): meanRate, medianRate(뉴런별 평균 발화율의 중앙값), activeFrac,
   ceilingFrac(창 내 ≥15회 = 불응기 한계, 폭주 하드 제약), topSpikeShare(상위 1% 뉴런의 발화 점유율 = 승자독식 측정치).
@@ -99,7 +244,7 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
   W 는 rho_target 로 직접 스케일. 탐색축 rho, lr, 입력 스케일, alpha, gap. 하드 제약은 포화(|x|>0.9) < 5%, 활성 DN ≥ 40,
   분리도 ≥ 0.01 (입력 무관 고정점 배제).
 
-### 3단계 결과 (요약 — 자세히는 `docs/stage3-calibration.md`)
+##### 3단계 결과 (요약 — 자세히는 `docs/stage3-calibration.md`)
 
 - 스펙 범위 rho ∈ [0.8, 1.3] 통과 **0/1200** (전부 침묵). 확장 rho ≤ 5: **4/1200**; k_local = 0 부분 탐색 **29/300**; b = 0 부분 탐색 **0/300**.
   통과점은 전부 alpha 1, rho 3.3–5, k_local ≤ 0.33, b > 0. **승자독식을 깬 것은 SFA** (b = 0 이면 mean 30–50 Hz 에 median 0 Hz 로 양극화);
@@ -114,7 +259,27 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - gap: 완전 리셋에서만 특징 R² 0.45–0.51, gap 0/25/50 은 0.13–0.15. 지속 어트랙터가 50 스텝 감쇠로는 안 사라진다.
 - smoke: 660 배치/s (reservoir 1.33 ms/배치, gap full), 불법 배치 0, 도달불가 DN 7개 발화 0.
 
-## 6단계 — 대전 엔진 + 공격형 교사 + 랭킹 학습 (자세히는 `docs/stage6-versus.md`)
+#### 4단계 — afterstate + null model 파이프라인
+
+- 정식화: 각 합법 배치의 결과 보드 → 리저버(후보마다 완전 리셋) → 가치 → argmax. 목표 V1(Dellacherie 점수) / V2(6특징 → 고정 가중치 결합).
+  리드아웃 R1 릿지 / R2 릿지+이차 / R3 MLP(직접 구현), 전 조건 동일. 조건 C0 real, C1 차수 보존 재배선, C2 가중치 순열, C3 층 블록 ER,
+  C4 KC 제거, C5 직접 간선 제거(1,531개), C6 활동량 요약 5개(교란 통제). C1–C3 시드 5개. 조건마다 ρ_unit 재계산·300점 재캘리브레이션.
+- 데이터: 40 게임 → 30,723 afterstate, 게임 단위 24/8/8 분할. 평가: 테스트 R²·결정 내 켄달 τ·top-1, 플레이 20 게임 × 2000 조각, 부트스트랩 95% CI.
+- 4단계 당시 예산 추정 39 h → 5단계에서 T 25·축 축소로 42 min. 5단계 동작점·분리 제약은 `data/separation-search.json` 에서 자동 반영
+  (`experiment-config.js resolveOperating`, `--ignore-separation` 으로 4단계 설정 복귀).
+
+#### 5단계 — 결과 요약 (자세히는 `docs/stage5-separation.md`)
+
+- **1부 분리 탐색** (C0, 600점, 11 min): 분리 제약(distinct ≥ 40%, dnDiff ≥ 5)은 3단계 제약 통과점에서 거의 자동 (16/17). 그러나 결정 내
+  켄달 τ 는 전 범위 −0.05~+0.06 — **분리는 있으나 순위 정보가 없다.** 임계점 가설 기각: 분리는 rho·G_IN·T 와 단조 증가(= 활동량),
+  낮은 rho 는 침묵. alpha 0.5 는 0/295 (침묵). 선택점 alpha 1, rho 4.81, b 2.65, T 25, G_IN×1.62.
+- 4단계 §3 의 "중간층 0.6/5577" 은 처음 25개(빈 보드) 결정의 표본 편향이었다. 셔플 50 결정에서는 중간층 150–620 뉴런이 달라진다.
+- **2부** (13 조건, 7.8 min): **C1 degree-shuffle 은 3 시드 모두 동작 영역 없음** (0/300, 침묵). rho_unit α0.5: real 59.2 = KC/direct-ablated ≫
+  weight/degree-shuffle 33.6–34.0 ≫ ER 27.8 (가중치 순열만으로 떨어진다). 풀링 R² 는 C0 0.817 이 C2(0.72–0.79)·C3(0.69–0.74) 위 (CI 분리),
+  C6 활동량 대비 +0.055; 결정 내 τ 는 C0 0.058 이 null 과 겹침 (차이 없음); 플레이는 전 조건 무작위 수준 (줄 중앙값 0, 교사 398).
+  R3−R1: C0 ΔR² +0.024, Δτ +0.068 (CI 분리, 작음). V1 vs V2: 차이 없음.
+
+#### 6단계 — 대전 엔진 + 공격형 교사 + 랭킹 학습 (자세히는 `docs/stage6-versus.md`)
 
 - **대전 엔진** (`src/tetris.js` 아래 절반, 순수 함수·상태 불변): hold 1칸(배치당 1회) · next 5 · 가비지 큐(하단 삽입, 한 공격 = 같은 구멍 열, 상쇄: 보낼 라인 < 큐면 차감 후 잔여만 수신, 확정당 최대 8줄) ·
   탑아웃 · `boardHeight`. 공격 = 가이드라인 (1/2/3/4줄 → 0/1/2/4, T-스핀 2/4/6, 콤보 표, 퍼펙트 클리어 +10; B2B 없음). T-스핀 = 3-corner + 마지막 동작 회전 (앞 모서리 둘·TST 킥이면 full, 아니면 mini).
@@ -129,7 +294,7 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - **7단계 예산** (`npm run estimate-budget`, 실측 단위 비용: 언롤 스텝당 7.0 ms = 순전파 1.4 + 역전파 5.6, 12 워커 ×7.6): 계획대로(40k 결정 × 42.5 후보 × T 25, 10 epoch) **70 h → 8 h 초과, 멈춤.**
   권장 축소: 결정당 후보 42.5 → 8 (교사 선택 + 상위 7) 그리고 결정 24k → 8k → 4.4 h (상한 8.8 h). 언롤 T 25 → 15 는 그 다음, 간선 가지치기(weight ≥ 5: 간선 63% / 시냅스 90% 유지)는 연구 대상을 바꾸므로 마지막.
 
-## 7단계 — 커넥톰 배선 제약 + 가중치 학습 (자세히는 `docs/stage7-wiring-constraint.md`)
+#### 7단계 — 커넥톰 배선 제약 + 가중치 학습 (자세히는 `docs/stage7-wiring-constraint.md`)
 
 - **모델** (`src/sparse-rnn.js`): 레이트 RNN `x(t+1) = (1−lr)x + lr·tanh((W⊙M)x + W_in·u + b)`, T 25, lr 0.33. M = 커넥톰 인접 마스크 (8,000 뉴런 · 459,168 간선, 고정), W 는 마스크 위치에만 있는 학습 파라미터
   (초기값 = 3단계 α=1 정규화 시냅스 수 × ρ 1.0 — 학습이 커넥톰 초기값에서 얼마나 멀어지는지 재기 위해). W_in (2,316 × 256, RF 초기값) 과 b 도 학습, 출력 DN 107 → 창 평균 → 표준화 → 107→64→1 리드아웃. P = 1,067,041.
@@ -143,7 +308,7 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - **진단**: 정책 선택의 16% 가 교사 값 하위 절반 (학습 상태에서도 14%) — 학습 부분집합 밖의 수를 거른 적이 없다. 파일럿: 음성 구성을 교사 선택 + 상위 3 + 무작위 4 로 바꾸면 top-1 40.9% [38.0, 43.8]·조각 200 (CI 분리) 이지만 생존은 여전히 0.
   **같은 P 의 밀집 MLP(D0) 도 같은 프로토콜에서 top-1 35.6% · 조각 80 · 테트리스 0 으로 죽는다** — 미달의 원인은 마스크가 아니라 1-ply 모방 · 8k 결정 · hard-negative 설정. 제안 축(음성 구성 · 데이터 8k→24k+ · DAgger 규모 · 플레이 시 얕은 탐색 · 정규화 · 중간 게이트)은 문서 §5.3, 결정은 사용자.
 
-## 8단계 — 웹 (`web/`, 배포 https://stx4r.github.io/Fly/)
+#### 8단계 — 웹 (`web/`, 배포 https://stx4r.github.io/Fly/)
 
 사이드바 콘솔 10화면 **한 앱**(해시 라우터), 프레임워크 없음(three + esbuild 만). 대전도 별도 페이지가 아니라 한 라우트(`#/versus`)다 —
 그래서 제목·사이드바 하이라이트·설정이 하나로 통일되고, 대전에서 나온 값이 다른 화면으로 그대로 흐른다.
@@ -165,27 +330,8 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 모바일은 사이드바가 상단 바로 접히고 대전 판이 세로로 쌓인다. reduced-motion 존중, WebGL 없어도 나머지 화면 동작.
 이 사이트는 미달한 결과를 미달한 대로 보여준다 — 커넥톰에서 오는 것은 배선뿐이고 가중치는 학습된 값이라고 쓴다.
 
-## 5단계 결과 요약 (자세히는 `docs/stage5-separation.md`)
-
-- **1부 분리 탐색** (C0, 600점, 11 min): 분리 제약(distinct ≥ 40%, dnDiff ≥ 5)은 3단계 제약 통과점에서 거의 자동 (16/17). 그러나 결정 내
-  켄달 τ 는 전 범위 −0.05~+0.06 — **분리는 있으나 순위 정보가 없다.** 임계점 가설 기각: 분리는 rho·G_IN·T 와 단조 증가(= 활동량),
-  낮은 rho 는 침묵. alpha 0.5 는 0/295 (침묵). 선택점 alpha 1, rho 4.81, b 2.65, T 25, G_IN×1.62.
-- 4단계 §3 의 "중간층 0.6/5577" 은 처음 25개(빈 보드) 결정의 표본 편향이었다. 셔플 50 결정에서는 중간층 150–620 뉴런이 달라진다.
-- **2부** (13 조건, 7.8 min): **C1 degree-shuffle 은 3 시드 모두 동작 영역 없음** (0/300, 침묵). rho_unit α0.5: real 59.2 = KC/direct-ablated ≫
-  weight/degree-shuffle 33.6–34.0 ≫ ER 27.8 (가중치 순열만으로 떨어진다). 풀링 R² 는 C0 0.817 이 C2(0.72–0.79)·C3(0.69–0.74) 위 (CI 분리),
-  C6 활동량 대비 +0.055; 결정 내 τ 는 C0 0.058 이 null 과 겹침 (차이 없음); 플레이는 전 조건 무작위 수준 (줄 중앙값 0, 교사 398).
-  R3−R1: C0 ΔR² +0.024, Δτ +0.068 (CI 분리, 작음). V1 vs V2: 차이 없음.
-
-## 4단계 (afterstate + null model) — 파이프라인
-
-- 정식화: 각 합법 배치의 결과 보드 → 리저버(후보마다 완전 리셋) → 가치 → argmax. 목표 V1(Dellacherie 점수) / V2(6특징 → 고정 가중치 결합).
-  리드아웃 R1 릿지 / R2 릿지+이차 / R3 MLP(직접 구현), 전 조건 동일. 조건 C0 real, C1 차수 보존 재배선, C2 가중치 순열, C3 층 블록 ER,
-  C4 KC 제거, C5 직접 간선 제거(1,531개), C6 활동량 요약 5개(교란 통제). C1–C3 시드 5개. 조건마다 ρ_unit 재계산·300점 재캘리브레이션.
-- 데이터: 40 게임 → 30,723 afterstate, 게임 단위 24/8/8 분할. 평가: 테스트 R²·결정 내 켄달 τ·top-1, 플레이 20 게임 × 2000 조각, 부트스트랩 95% CI.
-- 4단계 당시 예산 추정 39 h → 5단계에서 T 25·축 축소로 42 min. 5단계 동작점·분리 제약은 `data/separation-search.json` 에서 자동 반영
-  (`experiment-config.js resolveOperating`, `--ignore-separation` 으로 4단계 설정 복귀).
-
-### 알려진 한계
+---
+### Known Limitations.
 
 - **RF 배정은 임의적이다.** type 별 bodyId 순서로 격자에 균등 분산했을 뿐, 실제 LC 뉴런의 시야
   지도(망막위상)와 무관하다. soma 좌표는 1,360개가 null 이고 망막위상과의 대응을 검증할 수 없어 쓰지 않았다.
@@ -205,7 +351,8 @@ npm run deploy     # web/dist → gh-pages 브랜치 → GitHub Pages
 - **학습 전 모델이 top-1 24.5%** 를 낸다 (채운 칸이 적은 결과 보드가 활동이 낮은 편향). 7단계 top-1 수치는 이 기준선 위에서 읽어야 한다.
 - **대전 엔진의 물리는 배치 단위 근사다.** 조각은 스폰에서 좌·우·소프트드롭·회전으로 도달 가능한 정지 위치에 바로 놓이며 (시간·중력·락 딜레이 없음), 180° 회전·B2B 보너스·T-스핀 mini 의 세부 규칙(가이드라인 변형별 차이)은 구현하지 않았다.
 
-## 구조
+---
+### Code Structure.
 
 ```
 scripts/extract-connectome.js   neuPrint 호출·캐시·출력 (I/O)
@@ -253,3 +400,16 @@ src/viz.js                      서브샘플 그래프·에피소드 기록·요
 src/prng.js                     xorshift128+
 test/                           node:test 단위 테스트
 ```
+
+---
+## < LICENSE >
+<pre><code>Mozilla Public License Version 2.0
+
+Copyright (c) 2026 Yijun Yoo
+
+This Source Code Form is subject to the terms of the Mozilla Public
+License, v. 2.0. If a copy of the MPL was not distributed with this
+file, You can obtain one at https://mozilla.org/MPL/2.0/.
+</code></pre>  
+
+전문은 저장소 루트의 [LICENSE](./LICENSE) 파일 또는 <https://mozilla.org/MPL/2.0/> 에서 확인하실 수 있습니다.

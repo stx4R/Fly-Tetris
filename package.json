@@ -1,6 +1,6 @@
 {
   "name": "vfb-tetris",
-  "version": "0.6.0",
+  "version": "0.13.6",
   "private": true,
   "type": "module",
   "description": "Drosophila hemibrain connectome wiring as a sparsity mask for a Tetris-playing rate RNN whose weights are learned. Stage 7: wiring constraint + weight learning (BPTT, DAgger, null comparison).",
